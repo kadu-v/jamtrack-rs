@@ -1,11 +1,11 @@
-use nalgebra::{Matrix, Matrix1x4, Matrix2};
+use nalgebra::Matrix1x4;
 use num::Float;
 use std::fmt::Debug;
 
 /*------------------------------------------------------------------------------
 Type aliases
 ------------------------------------------------------------------------------*/
-type Tlwh<T> = Matrix1x4<T>;
+// type Tlwh<T> = Matrix1x4<T>;
 
 type Xyah<T> = Matrix1x4<T>;
 

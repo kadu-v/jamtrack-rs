@@ -1,13 +1,11 @@
-use nalgebra::{
-    ArrayStorage, Matrix, Matrix1x4, Matrix1xX, Matrix2, SMatrix, U1, U8,
-};
+use nalgebra::SMatrix;
 use num::Zero;
 
 /*-----------------------------------------------------------------------------
 Type aliases
 -------------------------------------------------------------------------------*/
 // 1x4
-type DetectBox = Matrix1x4<f32>;
+type DetectBox = SMatrix<f32, 1, 4>;
 // 1x8
 type StateMean = SMatrix<f32, 1, 8>;
 // 8x8

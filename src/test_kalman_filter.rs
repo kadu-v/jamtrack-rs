@@ -2,9 +2,8 @@
 Tests
 -------------------------------------------------------------------------------*/
 use super::kalman_filter::KalmanFilter;
-use nalgebra::{self, DMatrix, SMatrix};
+use nalgebra::{self, SMatrix};
 use nearly_eq::assert_nearly_eq;
-use num::Zero;
 
 #[test]
 fn test_initiate() {
@@ -168,7 +167,7 @@ fn test_update() {
 #[test]
 fn test_complex_predict() {
     let mut kalman_filter = KalmanFilter::new(1. / 20., 1. / 160.);
-    let mut expected_mean = SMatrix::<f32, 1, 8>::from_iterator([
+    let expected_mean = SMatrix::<f32, 1, 8>::from_iterator([
         1.0, 2.0, 3.0, 4.0, 0.0, 0.0, 0.0, 0.0,
     ]);
     #[rustfmt::skip]
@@ -194,7 +193,7 @@ fn test_complex_predict() {
     kalman_filter.predict(&mut mean, &mut covariance);
 
     assert_eq!(mean, expected_mean);
-    for (i, &v) in mean.iter().enumerate() {
-        assert_nearly_eq!(v, expected_mean.iter().nth(i).unwrap(), 1e-4)
+    for (i, &v) in expected_covariance.iter().enumerate() {
+        assert_nearly_eq!(v, expected_covariance.iter().nth(i).unwrap(), 1e-4)
     }
 }
