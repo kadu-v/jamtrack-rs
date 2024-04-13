@@ -357,3 +357,14 @@ if __name__ == '__main__':
     mean, covariance = kalman_filter.update(mean, covariance, measurement)
     print(mean)
     print(covariance)
+
+
+    kalman_filter = KalmanFilter()
+    measurement = np.array([1.0, 2.0, 3.0, 4.0])
+    mean, covariance = kalman_filter.initiate(measurement)
+    for i in range(10):
+        kalman_filter.update(mean, covariance, measurement)
+        mean, covariance = kalman_filter.predict(mean, covariance)
+    mean, covariance = kalman_filter.predict(mean, covariance)
+    print(mean)
+    print(covariance)
