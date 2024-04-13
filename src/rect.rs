@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use ndarray::{Array2, ArrayBase};
+use ndarray::Array2;
 use num::Float;
 
 /*------------------------------------------------------------------------------
