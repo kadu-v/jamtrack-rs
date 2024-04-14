@@ -327,6 +327,10 @@ pub fn lapjv(
     x: &mut Vec<isize>,
     y: &mut Vec<isize>,
 ) -> usize {
+    debug_assert!(cost.len() == n, "cost.len() must be equal to {}", n);
+    debug_assert!(x.len() == n, "x.len() must be equal to {}", n);
+    debug_assert!(y.len() == n, "y.len() must be equal to {}", n);
+
     let mut free_rows = vec![0; n];
     let mut v = vec![0.0; n];
     let mut ret = ccrt_dense(n, cost, &mut free_rows, x, &mut v, y);

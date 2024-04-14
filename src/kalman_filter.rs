@@ -5,19 +5,20 @@ use num::Zero;
 Type aliases
 -------------------------------------------------------------------------------*/
 // 1x4
-type DetectBox = SMatrix<f32, 1, 4>;
+pub(crate) type DetectBox = SMatrix<f32, 1, 4>;
 // 1x8
-type StateMean = SMatrix<f32, 1, 8>;
+pub(crate) type StateMean = SMatrix<f32, 1, 8>;
 // 8x8
-type StateCov = SMatrix<f32, 8, 8>;
+pub(crate) type StateCov = SMatrix<f32, 8, 8>;
 // 1x4
-type StateHMean = SMatrix<f32, 1, 4>;
+pub(crate) type StateHMean = SMatrix<f32, 1, 4>;
 // 4x4
-type StateHCov = SMatrix<f32, 4, 4>;
+pub(crate) type StateHCov = SMatrix<f32, 4, 4>;
 
 /*-----------------------------------------------------------------------------
 Kalman Filter
 -------------------------------------------------------------------------------*/
+#[derive(Debug, Clone)]
 pub struct KalmanFilter {
     std_weight_position: f32,
     std_weight_velocity: f32,
