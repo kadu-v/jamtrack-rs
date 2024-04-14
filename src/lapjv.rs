@@ -2,7 +2,7 @@
 Enum
 -----------------------------------------------------------------------------*/
 
-use std::{thread::panicking, vec};
+use std::vec;
 
 const LARGE: isize = 1000000;
 
@@ -25,6 +25,11 @@ pub(crate) fn ccrt_dense(
     v: &mut Vec<f64>,
     y: &mut Vec<isize>,
 ) -> usize {
+    debug_assert!(cost.len() == n, "cost.len() must be equal to {}", n);
+    debug_assert!(x.len() == n, "x.len() must be equal to {}", n);
+    debug_assert!(y.len() == n, "y.len() must be equal to {}", n);
+    debug_assert!(v.len() == n, "v.len() must be equal to {}", n);
+
     // initialize x, y, v
     for i in 0..n {
         x[i] = -1;
