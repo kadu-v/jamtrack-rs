@@ -2,7 +2,7 @@
 Enum
 -----------------------------------------------------------------------------*/
 
-use std::vec;
+use std::{thread::panicking, vec};
 
 const LARGE: isize = 1000000;
 
@@ -19,21 +19,21 @@ lapjv.rs - Jonker-Volgenant linear assignment algorithm
 
 pub(crate) fn ccrt_dense(
     n: usize,
-    cost: &Vec<Vec<isize>>,
+    cost: &Vec<Vec<f64>>,
     free_rows: &mut Vec<usize>,
     x: &mut Vec<isize>,
-    v: &mut Vec<isize>,
+    v: &mut Vec<f64>,
     y: &mut Vec<isize>,
 ) -> usize {
     // initialize x, y, v
     for i in 0..n {
         x[i] = -1;
-        v[i] = LARGE;
+        v[i] = LARGE as f64;
         y[i] = 0;
     }
     for i in 0..n {
         for j in 0..n {
-            let c = cost[i][j];
+            let c = cost[i][j] as f64;
             if c < v[j] {
                 v[j] = c;
                 y[j] = i as isize;
@@ -65,12 +65,12 @@ pub(crate) fn ccrt_dense(
             n_free_rows += 1;
         } else if unique[i] {
             let j = x[i] as usize;
-            let mut min = LARGE;
+            let mut min = LARGE as f64;
             for j2 in 0..n {
                 if j2 == j {
                     continue;
                 }
-                let c = cost[i][j2] - v[j2];
+                let c = cost[i][j2] as f64 - v[j2];
                 if c < min {
                     min = c;
                 }
@@ -83,7 +83,7 @@ pub(crate) fn ccrt_dense(
 
 pub(crate) fn carr_dence(
     n: usize,
-    cost: &Vec<Vec<isize>>,
+    cost: &Vec<Vec<f64>>,
     n_free_rows: usize,
     free_rows: &mut Vec<usize>,
     x: &mut Vec<isize>,
@@ -118,6 +118,7 @@ pub(crate) fn carr_dence(
                 }
             }
         }
+
         let mut i0 = y[j1 as usize];
         let v1_new = v[j1 as usize] - (v2 - v1);
         let v1_lowers = v1_new < v[j1 as usize];
@@ -151,14 +152,186 @@ pub(crate) fn carr_dence(
     return new_free_rows;
 }
 
-pub(crate) fn find_dense() {}
+pub(crate) fn find_dense(
+    n: usize,
+    lo: usize,
+    d: &Vec<f64>,
+    cols: &mut Vec<usize>,
+) -> usize {
+    debug_assert!(d.len() == n, "d.len() must be equal to n");
+    debug_assert!(cols.len() == n, "cols.len() must be equal to n");
+    let mut hi = lo + 1;
+    let mut mind = d[cols[lo]];
+    for k in hi..n {
+        let j = cols[k];
+        debug_assert!(j < d.len(), "j must be less than d.len()");
+        if d[j] <= mind {
+            if d[j] < mind {
+                hi = lo;
+                mind = d[j];
+            }
+            debug_assert!(hi <= cols.len(), "hi must be less than cols.len()");
+            debug_assert!(k <= cols.len(), "k must be less than cols.len()");
+            cols[k] = cols[hi];
+            cols[hi] = j;
+            hi += 1;
+        }
+    }
+    return hi;
+}
 
-pub(crate) fn scan_dense() {}
+pub(crate) fn scan_dense(
+    n: usize,
+    cost: &Vec<Vec<f64>>,
+    plo: &mut usize,
+    phi: &mut usize,
+    d: &mut Vec<f64>,
+    cols: &mut Vec<usize>,
+    pred: &mut Vec<usize>,
+    y: &mut Vec<isize>,
+    v: &mut Vec<f64>,
+) -> isize {
+    let mut lo = *plo;
+    let mut hi = *phi;
+    let mut h: f64;
+    let mut cred_ij: f64;
 
-pub(crate) fn find_path_dense() {}
+    while lo != hi {
+        debug_assert!(lo < cols.len(), "lo must be less than cols.len()");
+        let mut j = cols[lo];
+        lo += 1;
 
-pub(crate) fn ca_dense() {}
+        debug_assert!(j < y.len(), "j must be less than y.len()");
+        debug_assert!(j < d.len(), "j must be less than d.len()");
+        debug_assert!(j < v.len(), "j must be less than v.len()");
+        let i = y[j] as usize;
+        let mind = d[j];
 
-pub fn lapjv(n: usize, cost: &mut Vec<Vec<isize>>) -> Vec<usize> {
-    unimplemented!("lapjv.rs - Jonker-Volgenant linear assignment algorithm")
+        debug_assert!(y[j] >= 0, "y[j] must be greater than or equal to 0");
+        debug_assert!(i < cost.len(), "i must be less than cost.len()");
+        h = cost[i][j] - v[j] - mind;
+        for k in hi..n {
+            j = cols[k];
+            cred_ij = cost[i][j] - v[j] - h;
+            if cred_ij < d[j] {
+                d[j] = cred_ij;
+                pred[j] = i;
+                if cred_ij == mind {
+                    if y[j] < 0 {
+                        return j as isize;
+                    }
+                    cols[k] = cols[hi];
+                    cols[hi] = j;
+                    hi += 1;
+                }
+            }
+        }
+    }
+    *plo = lo;
+    *phi = hi;
+    return -1;
+}
+
+pub(crate) fn find_path_dense(
+    n: usize,
+    cost: &Vec<Vec<f64>>,
+    start_i: usize,
+    y: &mut Vec<isize>,
+    v: &mut Vec<f64>,
+    pred: &mut Vec<usize>,
+) -> isize {
+    let mut lo = 0;
+    let mut hi = 0;
+    let mut final_j = -1;
+    let mut n_ready = 0;
+    let mut cols = vec![0; n];
+    let mut d = vec![0.0; n];
+
+    for i in 0..n {
+        cols[i] = i;
+        pred[i] = start_i;
+        d[i] = cost[start_i][i] - v[i];
+    }
+
+    while final_j == -1 {
+        if lo == hi {
+            n_ready = lo;
+            hi = find_dense(n, lo, &d, &mut cols);
+            for k in lo..hi {
+                let j = cols[k];
+                if y[j] < 0 {
+                    final_j = j as isize;
+                }
+            }
+        }
+        if final_j == -1 {
+            final_j = scan_dense(
+                n, cost, &mut lo, &mut hi, &mut d, &mut cols, pred, y, v,
+            );
+        }
+    }
+
+    {
+        let mind = d[cols[lo]];
+        for k in 0..n_ready {
+            let j = cols[k];
+            v[j] += d[j] - mind;
+        }
+    }
+    return final_j;
+}
+
+pub(crate) fn ca_dense(
+    n: usize,
+    cost: &Vec<Vec<f64>>,
+    n_free_rows: usize,
+    free_rows: &mut Vec<usize>,
+    x: &mut Vec<isize>,
+    y: &mut Vec<isize>,
+    v: &mut Vec<f64>,
+) -> usize {
+    let mut pred = vec![0; n];
+
+    for row_n in 0..n_free_rows {
+        let free_row = free_rows[row_n];
+        let mut i = -1isize;
+        let mut k = 0;
+
+        let mut j = find_path_dense(n, cost, free_row, y, v, &mut pred);
+        assert!(j >= 0, "j must be greater than or equal to 0");
+        assert!(j < n as isize, "j must be less than n as isize");
+        while i != free_row as isize {
+            i = pred[j as usize] as isize;
+            y[j as usize] = i;
+
+            // swap x[i] and j
+            let tmp = j;
+            j = x[i as usize];
+            x[i as usize] = tmp;
+
+            k += 1;
+            assert!(k <= n, "k must be less than or equal to n");
+        }
+    }
+    return 0;
+}
+
+pub fn lapjv(
+    n: usize,
+    cost: &mut Vec<Vec<f64>>,
+    x: &mut Vec<isize>,
+    y: &mut Vec<isize>,
+) -> usize {
+    let mut free_rows = vec![0; n];
+    let mut v = vec![0.0; n];
+    let mut ret = ccrt_dense(n, cost, &mut free_rows, x, &mut v, y);
+    let mut i = 0;
+    while ret > 0 && i < 2 {
+        ret = carr_dence(n, cost, ret, &mut free_rows, x, y, &mut v);
+        i += 1;
+    }
+    if ret > 0 {
+        ret = ca_dense(n, cost, ret, &mut free_rows, x, y, &mut v);
+    }
+    return ret;
 }

@@ -7,3 +7,5 @@ pub mod strack;
 
 #[cfg(test)]
 mod test_kalman_filter;
+#[cfg(test)]
+mod test_lapjv;
