@@ -53,6 +53,26 @@ impl STrack {
         }
     }
 
+    // This function is used in the test_joint_strack function in src/test_byte_tracker.rs
+    pub(crate) fn dummy_strack(track_id: usize) -> Self {
+        let kalman_filter = KalmanFilter::new(1.0 / 20., 1.0 / 160.);
+        let mean = StateMean::zeros();
+        let covariance = StateCov::zeros();
+        Self {
+            kalman_filter,
+            mean,
+            covariance,
+            rect: Rect::new(0.0, 0.0, 0.0, 0.0),
+            state: STrackState::New,
+            is_activated: false,
+            score: 0.0,
+            track_id: track_id,
+            frame_id: 0,
+            start_frame_id: 0,
+            tracklet_len: 0,
+        }
+    }
+
     pub fn get_rect(&self) -> Rect<f32> {
         return self.rect.clone();
     }
@@ -165,5 +185,11 @@ impl STrack {
         self.rect.tlwh[(0, 3)] = self.mean[(0, 3)];
         self.rect.tlwh[(0, 0)] = self.mean[(0, 0)] - self.rect.width() / 2.;
         self.rect.tlwh[(0, 1)] = self.mean[(0, 1)] - self.rect.height() / 2.;
+    }
+}
+
+impl PartialEq for STrack {
+    fn eq(&self, other: &Self) -> bool {
+        return self.track_id == other.track_id;
     }
 }

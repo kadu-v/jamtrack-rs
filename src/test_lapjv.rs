@@ -53,7 +53,6 @@ fn test_lapjv_5x5() {
 
 #[test]
 fn test_lapjv_10x10_1() {
-    let n = 8;
     let mut cost = vec![
         vec![
             0.84612522, 0.38549337, 0.27955776, 0.76146103, 0.85084611,
@@ -106,7 +105,6 @@ fn test_lapjv_10x10_1() {
 
 #[test]
 fn test_lapjv_10x10_2() {
-    let n = 8;
     let mut cost = vec![
         vec![
             0.84612522, 0.38549337, 0.27955776, 0.76146103, 0.85084611,
