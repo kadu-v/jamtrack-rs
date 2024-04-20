@@ -127,7 +127,7 @@ impl STrack {
         &mut self,
         new_track: &STrack,
         frame_id: usize,
-        new_track_id: usize,
+        new_track_id: isize,
     ) {
         self.kalman_filter.update(
             &mut self.mean,
@@ -140,9 +140,8 @@ impl STrack {
         self.is_activated = true;
         self.score = new_track.get_score();
 
-        // TODO: new_track_id is usize, so this will always be true
         if 0 <= new_track_id {
-            self.track_id = new_track_id;
+            self.track_id = new_track_id as usize;
         }
         self.frame_id = frame_id;
         self.tracklet_len = 0;

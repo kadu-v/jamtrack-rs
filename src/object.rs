@@ -7,20 +7,14 @@ Object struct
 ------------------------------------------------------------------------------*/
 
 #[derive(Debug, Clone)]
-pub struct Object<T>
-where
-    T: Debug + Float,
-{
-    pub rect: Rect<T>,
+pub struct Object {
+    pub rect: Rect<f32>,
     pub label: usize,
     pub prob: f32,
 }
 
-impl<T> Object<T>
-where
-    T: Clone + Debug + Float,
-{
-    pub fn new(rect: Rect<T>, label: usize, prob: f32) -> Self {
+impl Object {
+    pub fn new(rect: Rect<f32>, label: usize, prob: f32) -> Self {
         Self { rect, label, prob }
     }
 }

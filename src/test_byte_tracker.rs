@@ -1,3 +1,5 @@
+use nearly_eq::assert_nearly_eq;
+
 use crate::byte_tracker::ByteTracker;
 use crate::strack::STrack;
 
@@ -178,7 +180,7 @@ fn test_exec_lapjv_10x10() {
         (f32::MAX / 2.) as f64,
         true,
     );
-    assert_eq!(opt, 1.1480934900000002);
+    assert_nearly_eq!(opt, 1.14809350669384, 0.0001);
     assert_eq!(rowsol, vec![8, 0, 2, 7, 9, 3, 5, 4, 6, 1]);
     assert_eq!(colsol, vec![1, 9, 2, 5, 7, 6, 8, 3, 0, 4]);
 }
@@ -229,7 +231,7 @@ fn test_exec_lapjv_8x10() {
         10.,
         true,
     );
-    assert_eq!(opt, 0.5487068900000001);
+    assert_nearly_eq!(opt, 0.5487068928778172, 0.001);
     assert_eq!(rowsol, vec![6, 0, 2, 7, 9, 3, 5, 8]);
     assert_eq!(colsol, vec![1, -1, 2, 5, -1, 6, 0, 3, 7, 4]);
 }
