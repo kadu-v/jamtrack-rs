@@ -1,11 +1,10 @@
 use crate::{
-    byte_tracker,
     lapjv::lapjv,
     object::Object,
     rect::Rect,
     strack::{STrack, STrackState},
 };
-use std::{collections::HashMap, sync::mpsc::RecvTimeoutError, vec};
+use std::{collections::HashMap, thread::panicking, vec};
 
 /*-----------------------------------------------------------------------------
 ByteTracker
@@ -15,7 +14,7 @@ ByteTracker
 pub struct ByteTracker {
     track_thresh: f32,
     high_thresh: f32,
-    math_thresh: f32,
+    match_thresh: f32,
     max_time_lost: usize,
 
     frame_id: usize,
@@ -28,16 +27,18 @@ pub struct ByteTracker {
 
 impl ByteTracker {
     pub fn new(
+        frame_rate: usize,
+        track_buffer: usize,
         track_thresh: f32,
         high_thresh: f32,
-        math_thresh: f32,
-        max_time_lost: usize,
+        match_thresh: f32,
     ) -> Self {
         Self {
             track_thresh,
             high_thresh,
-            math_thresh,
-            max_time_lost,
+            match_thresh,
+            max_time_lost: (track_buffer as f32 * frame_rate as f32 / 30.0)
+                as usize,
 
             frame_id: 0,
             track_id_count: 0,
@@ -50,6 +51,8 @@ impl ByteTracker {
 
     pub fn update(&mut self, objects: &Vec<Object>) -> Vec<STrack> {
         /*------------------ Step 1: Get detections -------------------------*/
+        println!("================ Step 1 =================");
+
         self.frame_id += 1;
 
         // Create new STracks using the result of object detections
@@ -60,7 +63,7 @@ impl ByteTracker {
             let strack = STrack::new(obj.rect.clone(), obj.prob);
             if obj.prob >= self.track_thresh {
                 det_stracks.push(strack);
-            } else if obj.prob >= self.high_thresh {
+            } else {
                 det_low_stracks.push(strack);
             }
         }
@@ -70,10 +73,10 @@ impl ByteTracker {
         let mut non_active_stracks = Vec::new();
 
         for tracked_strack in self.tracked_stracks.iter() {
-            if tracked_strack.is_activated() {
-                active_stracks.push(tracked_strack.clone());
-            } else {
+            if !tracked_strack.is_activated() {
                 non_active_stracks.push(tracked_strack.clone());
+            } else {
+                active_stracks.push(tracked_strack.clone());
             }
         }
 
@@ -82,7 +85,25 @@ impl ByteTracker {
 
         // Predict the current location with KF
         for strack in strack_pool.iter_mut() {
+            if strack.get_track_id() == 23 {
+                println!("mean: {}", strack.mean);
+                println!("cov: {}", strack.covariance);
+            }
             strack.predict();
+
+            if strack.get_track_id() == 23 {
+                println!("mean: {}", strack.mean);
+                println!("cov: {}", strack.covariance);
+            }
+        }
+
+        println!("frame_id: {}", self.frame_id);
+        println!("active_stracks: {}", active_stracks.len());
+        println!("non_active_stracks: {}", non_active_stracks.len());
+        println!("strack_pool: {}", strack_pool.len());
+
+        for strack in strack_pool.iter() {
+            println!("strack in strack pool: {:?}", strack.get_rect(),);
         }
 
         /*------------------ Step 2: First association with IoU -------------------------*/
@@ -90,16 +111,18 @@ impl ByteTracker {
         let mut remain_tracked_stracks = Vec::new();
         let mut remain_det_stracks = Vec::new();
         let mut refined_stracks = Vec::new();
+        println!("================ Step 2 =================");
 
         {
             let iou_distance =
                 Self::calc_iou_distance(&strack_pool, &det_stracks);
+
             let (matches_idx, unmatched_track_idx, unmatched_detection_idx) =
                 self.linear_assignment(
                     &iou_distance,
                     strack_pool.len(),
                     det_stracks.len(),
-                    self.track_thresh,
+                    self.match_thresh,
                 );
             for (idx, sol) in matches_idx {
                 debug_assert!(sol >= 0, "sol is negative {}", sol);
@@ -110,12 +133,27 @@ impl ByteTracker {
                     current_tracked_stracks.push(track.clone());
                     strack_pool[idx] = track; // update the track
                 } else {
-                    track.reactivate(
+                    println!(
+                        "-------------->reactivate: {:?}",
+                        track.get_rect()
+                    );
+
+                    track.re_activate(
                         det,
                         self.frame_id,
                         -1, /* defualt value */
                     );
-                    refined_stracks.push(track);
+                    refined_stracks.push(track.clone());
+                    println!(
+                        "-------------->reactivate: {:?}",
+                        track.get_rect()
+                    );
+                    println!("{}", track.get_track_id());
+                    println!("det: {:?}", det.get_rect());
+                    println!("det cov: {:?}", det.covariance);
+                    println!("det mean: {:?}", det.mean);
+
+                    strack_pool[idx] = track; // update the track
                 }
             }
 
@@ -131,22 +169,46 @@ impl ByteTracker {
                         .push(strack_pool[unmatched_idx].clone());
                 }
             }
+            println!(
+                "current_tracked_stracks: {}",
+                current_tracked_stracks.len()
+            );
+            println!(
+                "remain_tracked_stracks: {}",
+                remain_tracked_stracks.len()
+            );
+            println!("remain_det_stracks: {}", remain_det_stracks.len());
+            println!("refined_stracks: {}", refined_stracks.len());
         }
 
         /*------------------ Step 3: Second association using low score dets -------------------------*/
+        println!("================ Step 3 =================");
         let mut current_lost_stracks = Vec::new();
         {
             let iou_distance = Self::calc_iou_distance(
                 &remain_tracked_stracks,
                 &det_low_stracks,
             );
-            let (matches_idx, unmatched_track_idx, unmatched_detection_idx) =
-                self.linear_assignment(
-                    &iou_distance,
-                    remain_tracked_stracks.len(),
-                    det_low_stracks.len(),
-                    0.5,
-                );
+
+            for track in remain_tracked_stracks.iter() {
+                println!("track: {:?}", track.get_rect());
+            }
+            for det in det_low_stracks.iter() {
+                println!("det: {:?}", det.get_rect());
+            }
+
+            for (i, row) in iou_distance.iter().enumerate() {
+                for (j, &iou) in row.iter().enumerate() {
+                    println!("iou_distance[{}][{}]: {}", i, j, iou);
+                }
+            }
+
+            let (matches_idx, unmatched_track_idx, _) = self.linear_assignment(
+                &iou_distance,
+                remain_tracked_stracks.len(),
+                det_low_stracks.len(),
+                0.5,
+            );
 
             for (idx, sol) in matches_idx {
                 debug_assert!(sol >= 0, "sol is negative {}", sol);
@@ -158,49 +220,75 @@ impl ByteTracker {
                     current_tracked_stracks.push(track.clone());
                     remain_tracked_stracks[idx] = track; // update the track
                 } else {
-                    track.reactivate(
+                    println!(
+                        "-------------->reactivate low score: {:?}",
+                        track.get_rect()
+                    );
+                    track.re_activate(
                         det,
                         self.frame_id,
                         -1, /* defulat value */
                     );
-                    refined_stracks.push(track);
+                    println!(
+                        "-------------->reactivate low score: {:?}",
+                        track.get_rect()
+                    );
+                    refined_stracks.push(track.clone());
+                    remain_tracked_stracks[idx] = track; // update the track
+                    panic!("reactivate low score");
                 }
             }
 
-            for &unmatch_idx in unmatched_detection_idx.iter() {
+            for &unmatch_idx in unmatched_track_idx.iter() {
                 let mut track = remain_tracked_stracks[unmatch_idx].clone();
                 if track.get_strack_state() != STrackState::Lost {
                     track.mark_as_lost();
-                    current_lost_stracks.push(track);
+                    current_lost_stracks.push(track.clone());
+                    remain_tracked_stracks[unmatch_idx] = track; // update the track
                 }
             }
+
+            println!("current_lost_stracks: {}", current_lost_stracks.len());
+            println!(
+                "current_tracked_stracks: {}",
+                current_tracked_stracks.len()
+            );
+            println!(
+                "remain_tracked_stracks: {}",
+                remain_tracked_stracks.len()
+            );
+            println!("remain_det_stracks: {}", remain_det_stracks.len());
+            println!("refined_stracks: {}", refined_stracks.len());
         }
 
         /*------------------ Step 4: Init new stracks -------------------------*/
         let mut current_removed_stracks = Vec::new();
+        println!("================ Step 4 =================");
         {
             let iou_distance = Self::calc_iou_distance(
                 &non_active_stracks,
                 &remain_det_stracks,
             );
 
-            let (matches_idx, _, unmatched_detection_idx) = self
-                .linear_assignment(
+            let (matches_idx, unmatch_unconfirmed_idx, unmatched_detection_idx) =
+                self.linear_assignment(
                     &iou_distance,
                     non_active_stracks.len(),
                     remain_det_stracks.len(),
-                    self.track_thresh,
+                    0.7,
                 );
 
             for &(idx, sol) in matches_idx.iter() {
-                non_active_stracks[idx]
-                    .update(&remain_det_stracks[sol as usize], self.frame_id);
-                current_tracked_stracks.push(non_active_stracks[idx].clone());
+                let mut track = non_active_stracks[idx].clone();
+                track.update(&remain_det_stracks[sol as usize], self.frame_id);
+                current_tracked_stracks.push(track.clone());
+                non_active_stracks[idx] = track; // update the track
             }
 
-            for &unmatch_idx in unmatched_detection_idx.iter() {
+            for &unmatch_idx in unmatch_unconfirmed_idx.iter() {
                 let mut track = non_active_stracks[unmatch_idx].clone();
                 track.mark_as_removed();
+
                 current_removed_stracks.push(track.clone());
                 non_active_stracks[unmatch_idx] = track;
             }
@@ -216,33 +304,74 @@ impl ByteTracker {
                 current_tracked_stracks.push(track.clone());
                 remain_det_stracks[unmatch_idx] = track; // update the track
             }
-        }
 
+            println!(
+                "current_removed_stracks: {}",
+                current_removed_stracks.len()
+            );
+            println!(
+                "current_tracked_stracks: {}",
+                current_tracked_stracks.len()
+            );
+            println!(
+                "remain_tracked_stracks: {}",
+                remain_tracked_stracks.len()
+            );
+            println!("remain_det_stracks: {}", remain_det_stracks.len());
+            println!("refined_stracks: {}", refined_stracks.len());
+        }
         /*------------------ Step 5: Update state -------------------------*/
-        for lost_track in self.lost_stracks.iter_mut() {
+
+        for i in 0..self.lost_stracks.len() {
+            let lost_track = &self.lost_stracks[i];
             if self.frame_id - lost_track.get_frame_id() > self.max_time_lost {
-                lost_track.mark_as_removed();
+                let mut track = lost_track.clone();
+                track.mark_as_removed();
                 current_removed_stracks.push(lost_track.clone());
+                self.lost_stracks[i] = track; // update the track
             }
         }
 
-        let tracked_stracks =
-            Self::joint_stracks(&current_tracked_stracks, &self.lost_stracks);
-        let lost_stracks =
-            Self::sub_stracks(&self.lost_stracks, &current_lost_stracks);
-        let removed_stracks = Self::joint_stracks(
+        println!("Removed: {}", current_removed_stracks.len());
+        println!("Tracked: {}", current_tracked_stracks.len());
+        println!("Lost: {}", current_lost_stracks.len());
+        println!("Refined: {}", refined_stracks.len());
+        println!("non_active_stracks: {}", non_active_stracks.len());
+
+        println!("{:?}", refined_stracks);
+        self.tracked_stracks =
+            Self::joint_stracks(&current_tracked_stracks, &refined_stracks);
+
+        // calculate the number of removed objects
+        let subtrack_stracks =
+            Self::sub_stracks(&self.lost_stracks, &self.tracked_stracks);
+        let joint_stracks =
+            Self::joint_stracks(&subtrack_stracks, &current_lost_stracks);
+        self.lost_stracks =
+            Self::sub_stracks(&joint_stracks, &self.removed_stracks);
+
+        // calculate the number of removed objects
+        self.removed_stracks = Self::joint_stracks(
             &self.removed_stracks,
             &current_removed_stracks,
         );
 
-        let (tracked_stracks_out, lost_stracks_out) =
-            self.remove_duplicate_stracks(&tracked_stracks, &lost_stracks);
+        let (tracked_stracks_out, lost_stracks_out) = self
+            .remove_duplicate_stracks(
+                &self.tracked_stracks,
+                &self.lost_stracks,
+            );
         self.tracked_stracks = tracked_stracks_out;
         self.lost_stracks = lost_stracks_out;
 
+        println!("Removed: {}", self.removed_stracks.len());
+        println!("Tracked: {}", self.tracked_stracks.len());
+        println!("Lost: {}", self.lost_stracks.len());
+        println!("Refined: {}", refined_stracks.len());
+
         let mut output_stracks = Vec::new();
         for track in self.tracked_stracks.iter() {
-            if track.get_strack_state() == STrackState::Tracked {
+            if track.is_activated() {
                 output_stracks.push(track.clone());
             }
         }
@@ -268,7 +397,7 @@ impl ByteTracker {
             // The original code is more check
             // if the value corresponding to the key is 0
             // https://github.com/Vertical-Beach/ByteTrack-cpp/blob/d43805d461a714f65da039981bd5f5d21cf5cf59/src/BYTETracker.cpp#L241-L242
-            if !exists.contains_key(&tid) {
+            if !exists.contains_key(&tid) || exists[&tid] == 0 {
                 exists.insert(tid, 1);
                 res.push(b.clone());
             }
@@ -313,32 +442,32 @@ impl ByteTracker {
                     overlapping_combinations.push((i, j));
                 }
             }
+        }
 
-            let mut a_overlapping = vec![false; a_stracks.len()];
-            let mut b_overlapping = vec![false; b_stracks.len()];
+        let mut a_overlapping = vec![false; a_stracks.len()];
+        let mut b_overlapping = vec![false; b_stracks.len()];
 
-            for &(i, j) in overlapping_combinations.iter() {
-                let timep =
-                    a_stracks[i].get_frame_id() - b_stracks[j].get_frame_id();
-                let timeq =
-                    b_stracks[j].get_frame_id() - a_stracks[i].get_frame_id();
-                if timep > timeq {
-                    b_overlapping[j] = true;
-                } else {
-                    a_overlapping[i] = true;
-                }
+        for &(i, j) in overlapping_combinations.iter() {
+            let timep =
+                a_stracks[i].get_frame_id() - a_stracks[i].get_start_frame_id();
+            let timeq =
+                b_stracks[j].get_frame_id() - b_stracks[j].get_start_frame_id();
+            if timep > timeq {
+                b_overlapping[j] = true;
+            } else {
+                a_overlapping[i] = true;
             }
+        }
 
-            for (i, a_strack) in a_stracks.iter().enumerate() {
-                if !a_overlapping[i] {
-                    a_res.push(a_strack.clone());
-                }
+        for (i, a_strack) in a_stracks.iter().enumerate() {
+            if !a_overlapping[i] {
+                a_res.push(a_strack.clone());
             }
+        }
 
-            for (i, b_strack) in b_stracks.iter().enumerate() {
-                if !b_overlapping[i] {
-                    b_res.push(b_strack.clone());
-                }
+        for (i, b_strack) in b_stracks.iter().enumerate() {
+            if !b_overlapping[i] {
+                b_res.push(b_strack.clone());
             }
         }
 
@@ -347,33 +476,37 @@ impl ByteTracker {
 
     pub fn linear_assignment(
         &self,
-        const_matrix: &Vec<Vec<f32>>,
-        const_matrix_len: usize,
-        const_matrix_row_len: usize,
+        cost_matrix: &Vec<Vec<f32>>,
+        cost_matrix_len: usize,
+        cost_matrix_row_len: usize,
         thresh: f32,
     ) -> (Vec<(usize, isize)>, Vec<usize>, Vec<usize>) {
         let mut matches = Vec::new();
         let mut a_unmatched = Vec::new();
         let mut b_unmatched = Vec::new();
 
-        if const_matrix.len() == 0 {
-            for i in 0..const_matrix_len {
+        if cost_matrix.len() == 0 {
+            for i in 0..cost_matrix_len {
                 a_unmatched.push(i);
             }
 
-            for i in 0..const_matrix_row_len {
+            for i in 0..cost_matrix_row_len {
                 b_unmatched.push(i);
             }
+            return (matches, a_unmatched, b_unmatched);
         }
 
-        let mut rowsol = Vec::new();
-        let mut colsol = Vec::new();
+        debug_assert!(cost_matrix.len() == cost_matrix_len);
+        debug_assert!(cost_matrix[0].len() == cost_matrix_row_len);
+
+        let mut rowsol = vec![-1; cost_matrix_len];
+        let mut colsol = vec![0; cost_matrix_row_len];
 
         // The original code is correct?
         // I think the original code is wrong, because the order of arguments is inccorect.
         // https://github.com/Vertical-Beach/ByteTrack-cpp/blob/d43805d461a714f65da039981bd5f5d21cf5cf59/src/BYTETracker.cpp#L353-L354
         let _ = Self::exec_lapjv(
-            const_matrix,
+            cost_matrix,
             &mut rowsol,
             &mut colsol,
             true,
@@ -410,7 +543,7 @@ impl ByteTracker {
 
         for bi in 0..b_rects.len() {
             for ai in 0..a_rects.len() {
-                ious[ai][bi] = a_rects[ai].calc_iou(&b_rects[bi])
+                ious[ai][bi] = b_rects[bi].calc_iou(&a_rects[ai]);
             }
         }
 
@@ -433,11 +566,13 @@ impl ByteTracker {
         }
 
         let ious = Self::calc_ious(&a_rects, &b_rects);
-        let mut cost_matrix = vec![vec![0.0; b_tracks.len()]; a_tracks.len()];
+        let mut cost_matrix = Vec::new();
         for ai in 0..a_tracks.len() {
+            let mut iou = Vec::new();
             for bi in 0..b_tracks.len() {
-                cost_matrix[ai][bi] = 1.0 - ious[ai][bi];
+                iou.push(1.0 - ious[ai][bi]);
             }
+            cost_matrix.push(iou);
         }
 
         cost_matrix
@@ -586,7 +721,6 @@ impl ByteTracker {
 
             if return_cost {
                 for i in 0..n_rows {
-                    debug_assert!(rowsol[i] >= 0, "rowsol[i] is negative");
                     if rowsol[i] >= 0 {
                         opt += cost[i][rowsol[i] as usize] as f64;
                     }
@@ -594,7 +728,6 @@ impl ByteTracker {
             }
         } else if return_cost {
             for i in 0..rowsol.len() {
-                debug_assert!(rowsol[i] >= 0, "rowsol[i] is negative");
                 if rowsol[i] >= 0 {
                     opt += cost[i][rowsol[i] as usize] as f64;
                 }

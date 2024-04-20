@@ -80,6 +80,7 @@ impl KalmanFilter {
         let tmp = std.component_mul(&std);
         // convert 1-d array to 2-d array that has diagonal values of 1-d array
         *covariance = SMatrix::<f32, 8, 8>::from_diagonal(&tmp.transpose());
+        println!("covariance: {}", covariance);
     }
 
     pub fn predict(&mut self, mean: &mut StateMean, covariance: &mut StateCov) {
@@ -119,14 +120,14 @@ impl KalmanFilter {
         let b = (*covariance * self.update_mat.transpose()).transpose();
         let choleskey_factor = projected_covariance.cholesky().unwrap();
         // kalman_gain: 8x4
-        let kalman_gain = choleskey_factor.solve(&b).transpose();
+        let kalman_gain = choleskey_factor.solve(&b);
         // innovation: 1x4
         let innovation = measurement - &projected_mean;
         // tmp: 1x8
-        let tmp = innovation * &kalman_gain.transpose();
+        let tmp = innovation * &kalman_gain;
         *mean += &tmp;
         *covariance -=
-            kalman_gain * projected_covariance * kalman_gain.transpose();
+            kalman_gain.transpose() * projected_covariance * kalman_gain;
     }
 
     pub fn project(
@@ -153,5 +154,7 @@ impl KalmanFilter {
         let innovation_cov = diag.component_mul(&diag);
         let cov = self.update_mat * covariance * self.update_mat.transpose();
         *projected_covariance = cov + innovation_cov;
+        println!("projected_mean: {:?}", projected_mean);
+        println!("projected_covariance: {:?}", projected_covariance);
     }
 }

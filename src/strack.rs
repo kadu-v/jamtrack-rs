@@ -21,8 +21,8 @@ STrack struct
 #[derive(Debug, Clone)]
 pub struct STrack {
     kalman_filter: KalmanFilter,
-    mean: StateMean,
-    covariance: StateCov,
+    pub mean: StateMean,
+    pub covariance: StateCov,
     rect: Rect<f32>,
     state: STrackState,
     is_activated: bool,
@@ -115,7 +115,7 @@ impl STrack {
         self.update_rect();
         self.state = STrackState::Tracked;
         if frame_id == 1 {
-            self.start_frame_id = 1;
+            self.is_activated = true;
         }
         self.track_id = track_id;
         self.frame_id = frame_id;
@@ -123,12 +123,13 @@ impl STrack {
         self.tracklet_len = 0;
     }
 
-    pub fn reactivate(
+    pub fn re_activate(
         &mut self,
         new_track: &STrack,
         frame_id: usize,
         new_track_id: isize,
     ) {
+        println!("self.mean: {}\n, self.cov: {}", self.mean, self.covariance);
         self.kalman_filter.update(
             &mut self.mean,
             &mut self.covariance,
