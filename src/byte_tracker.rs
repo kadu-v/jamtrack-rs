@@ -42,8 +42,7 @@ impl ByteTracker {
         }
     }
 
-    pub fn joint_strack(
-        &self,
+    pub fn joint_stracks(
         a_list: &Vec<STrack>,
         b_list: &Vec<STrack>,
     ) -> Vec<STrack> {
@@ -70,7 +69,6 @@ impl ByteTracker {
     }
 
     pub fn sub_stracks(
-        &self,
         a_list: &Vec<STrack>,
         b_list: &Vec<STrack>,
     ) -> Vec<STrack> {
