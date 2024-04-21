@@ -1,12 +1,12 @@
-use std::{collections::HashMap, hash::Hash, thread::panicking};
+use std::collections::HashMap;
 
-use bytetrack_rs::{byte_tracker::ByteTracker, object::Object};
+use bytetrack_rs::byte_tracker::ByteTracker;
 use nearly_eq::assert_nearly_eq;
-use num::iter;
 use serde::Deserialize;
 use serde_json;
 
-const TRACKING_JSON_PATH: &str = "data/YOLOX_ncnn_palace/tracking_results.json";
+const TRACKING_JSON_PATH: &str =
+    "data/YOLOX_ncnn_palace/tracking_results_x.json";
 const DETECTION_JSON_PATH: &str =
     "data/YOLOX_ncnn_palace/detection_results.json";
 
@@ -130,8 +130,8 @@ TrackingResult struct
 #[derive(Debug, Clone)]
 struct Tracking {
     name: String,
-    fps: usize,
-    track_buffer: usize,
+    _fps: usize,
+    _track_buffer: usize,
     results: HashMap<usize, HashMap<usize, TrackingResult>>,
 }
 
@@ -157,8 +157,8 @@ impl Tracking {
 
         Self {
             name: tracking.name.clone(),
-            fps: tracking.fps,
-            track_buffer: tracking.track_buffer,
+            _fps: tracking.fps,
+            _track_buffer: tracking.track_buffer,
             results,
         }
     }
@@ -249,7 +249,7 @@ fn test_byte_track_with_yolox() {
         let expected_outputs = tracking_results.get(&frame_id).unwrap();
 
         // check that outputs contains all expected_outputs
-        for (track_id, expected_output) in expected_outputs.iter() {
+        for (track_id, _) in expected_outputs.iter() {
             assert!(
                 outputs
                     .iter()
@@ -261,6 +261,7 @@ fn test_byte_track_with_yolox() {
         }
 
         for output in outputs.iter() {
+            #[allow(non_snake_case)]
             let EPS = 1.0e-2;
             let rect = output.get_rect();
             let expected_rect = {

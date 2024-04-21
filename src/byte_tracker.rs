@@ -51,7 +51,6 @@ impl ByteTracker {
 
     pub fn update(&mut self, objects: &Vec<Object>) -> Vec<STrack> {
         /*------------------ Step 1: Get detections -------------------------*/
-        println!("================ Step 1 =================");
 
         self.frame_id += 1;
 
@@ -85,25 +84,7 @@ impl ByteTracker {
 
         // Predict the current location with KF
         for strack in strack_pool.iter_mut() {
-            if strack.get_track_id() == 23 {
-                println!("mean: {}", strack.mean);
-                println!("cov: {}", strack.covariance);
-            }
             strack.predict();
-
-            if strack.get_track_id() == 23 {
-                println!("mean: {}", strack.mean);
-                println!("cov: {}", strack.covariance);
-            }
-        }
-
-        println!("frame_id: {}", self.frame_id);
-        println!("active_stracks: {}", active_stracks.len());
-        println!("non_active_stracks: {}", non_active_stracks.len());
-        println!("strack_pool: {}", strack_pool.len());
-
-        for strack in strack_pool.iter() {
-            println!("strack in strack pool: {:?}", strack.get_rect(),);
         }
 
         /*------------------ Step 2: First association with IoU -------------------------*/
@@ -111,7 +92,6 @@ impl ByteTracker {
         let mut remain_tracked_stracks = Vec::new();
         let mut remain_det_stracks = Vec::new();
         let mut refined_stracks = Vec::new();
-        println!("================ Step 2 =================");
 
         {
             let iou_distance =
@@ -133,25 +113,12 @@ impl ByteTracker {
                     current_tracked_stracks.push(track.clone());
                     strack_pool[idx] = track; // update the track
                 } else {
-                    println!(
-                        "-------------->reactivate: {:?}",
-                        track.get_rect()
-                    );
-
                     track.re_activate(
                         det,
                         self.frame_id,
                         -1, /* defualt value */
                     );
                     refined_stracks.push(track.clone());
-                    println!(
-                        "-------------->reactivate: {:?}",
-                        track.get_rect()
-                    );
-                    println!("{}", track.get_track_id());
-                    println!("det: {:?}", det.get_rect());
-                    println!("det cov: {:?}", det.covariance);
-                    println!("det mean: {:?}", det.mean);
 
                     strack_pool[idx] = track; // update the track
                 }
@@ -169,39 +136,15 @@ impl ByteTracker {
                         .push(strack_pool[unmatched_idx].clone());
                 }
             }
-            println!(
-                "current_tracked_stracks: {}",
-                current_tracked_stracks.len()
-            );
-            println!(
-                "remain_tracked_stracks: {}",
-                remain_tracked_stracks.len()
-            );
-            println!("remain_det_stracks: {}", remain_det_stracks.len());
-            println!("refined_stracks: {}", refined_stracks.len());
         }
 
         /*------------------ Step 3: Second association using low score dets -------------------------*/
-        println!("================ Step 3 =================");
         let mut current_lost_stracks = Vec::new();
         {
             let iou_distance = Self::calc_iou_distance(
                 &remain_tracked_stracks,
                 &det_low_stracks,
             );
-
-            for track in remain_tracked_stracks.iter() {
-                println!("track: {:?}", track.get_rect());
-            }
-            for det in det_low_stracks.iter() {
-                println!("det: {:?}", det.get_rect());
-            }
-
-            for (i, row) in iou_distance.iter().enumerate() {
-                for (j, &iou) in row.iter().enumerate() {
-                    println!("iou_distance[{}][{}]: {}", i, j, iou);
-                }
-            }
 
             let (matches_idx, unmatched_track_idx, _) = self.linear_assignment(
                 &iou_distance,
@@ -220,22 +163,13 @@ impl ByteTracker {
                     current_tracked_stracks.push(track.clone());
                     remain_tracked_stracks[idx] = track; // update the track
                 } else {
-                    println!(
-                        "-------------->reactivate low score: {:?}",
-                        track.get_rect()
-                    );
                     track.re_activate(
                         det,
                         self.frame_id,
                         -1, /* defulat value */
                     );
-                    println!(
-                        "-------------->reactivate low score: {:?}",
-                        track.get_rect()
-                    );
                     refined_stracks.push(track.clone());
                     remain_tracked_stracks[idx] = track; // update the track
-                    panic!("reactivate low score");
                 }
             }
 
@@ -247,23 +181,10 @@ impl ByteTracker {
                     remain_tracked_stracks[unmatch_idx] = track; // update the track
                 }
             }
-
-            println!("current_lost_stracks: {}", current_lost_stracks.len());
-            println!(
-                "current_tracked_stracks: {}",
-                current_tracked_stracks.len()
-            );
-            println!(
-                "remain_tracked_stracks: {}",
-                remain_tracked_stracks.len()
-            );
-            println!("remain_det_stracks: {}", remain_det_stracks.len());
-            println!("refined_stracks: {}", refined_stracks.len());
         }
 
         /*------------------ Step 4: Init new stracks -------------------------*/
         let mut current_removed_stracks = Vec::new();
-        println!("================ Step 4 =================");
         {
             let iou_distance = Self::calc_iou_distance(
                 &non_active_stracks,
@@ -304,21 +225,6 @@ impl ByteTracker {
                 current_tracked_stracks.push(track.clone());
                 remain_det_stracks[unmatch_idx] = track; // update the track
             }
-
-            println!(
-                "current_removed_stracks: {}",
-                current_removed_stracks.len()
-            );
-            println!(
-                "current_tracked_stracks: {}",
-                current_tracked_stracks.len()
-            );
-            println!(
-                "remain_tracked_stracks: {}",
-                remain_tracked_stracks.len()
-            );
-            println!("remain_det_stracks: {}", remain_det_stracks.len());
-            println!("refined_stracks: {}", refined_stracks.len());
         }
         /*------------------ Step 5: Update state -------------------------*/
 
@@ -331,14 +237,6 @@ impl ByteTracker {
                 self.lost_stracks[i] = track; // update the track
             }
         }
-
-        println!("Removed: {}", current_removed_stracks.len());
-        println!("Tracked: {}", current_tracked_stracks.len());
-        println!("Lost: {}", current_lost_stracks.len());
-        println!("Refined: {}", refined_stracks.len());
-        println!("non_active_stracks: {}", non_active_stracks.len());
-
-        println!("{:?}", refined_stracks);
         self.tracked_stracks =
             Self::joint_stracks(&current_tracked_stracks, &refined_stracks);
 
@@ -363,11 +261,6 @@ impl ByteTracker {
             );
         self.tracked_stracks = tracked_stracks_out;
         self.lost_stracks = lost_stracks_out;
-
-        println!("Removed: {}", self.removed_stracks.len());
-        println!("Tracked: {}", self.tracked_stracks.len());
-        println!("Lost: {}", self.lost_stracks.len());
-        println!("Refined: {}", refined_stracks.len());
 
         let mut output_stracks = Vec::new();
         for track in self.tracked_stracks.iter() {

@@ -1,3 +1,6 @@
+use core::panic;
+use std::thread::panicking;
+
 use crate::{
     kalman_filter::{KalmanFilter, StateCov, StateMean},
     rect::Rect,
@@ -23,14 +26,14 @@ pub struct STrack {
     kalman_filter: KalmanFilter,
     pub mean: StateMean,
     pub covariance: StateCov,
-    rect: Rect<f32>,
-    state: STrackState,
-    is_activated: bool,
-    score: f32,
-    track_id: usize,
-    frame_id: usize,
-    start_frame_id: usize,
-    tracklet_len: usize,
+    pub rect: Rect<f32>,
+    pub state: STrackState,
+    pub is_activated: bool,
+    pub score: f32,
+    pub track_id: usize,
+    pub frame_id: usize,
+    pub start_frame_id: usize,
+    pub tracklet_len: usize,
 }
 
 impl STrack {
@@ -113,6 +116,7 @@ impl STrack {
         );
 
         self.update_rect();
+
         self.state = STrackState::Tracked;
         if frame_id == 1 {
             self.is_activated = true;
@@ -129,7 +133,6 @@ impl STrack {
         frame_id: usize,
         new_track_id: isize,
     ) {
-        println!("self.mean: {}\n, self.cov: {}", self.mean, self.covariance);
         self.kalman_filter.update(
             &mut self.mean,
             &mut self.covariance,

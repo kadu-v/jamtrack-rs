@@ -37,7 +37,7 @@ impl KalmanFilter {
         // 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
         // 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
         // 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
-        let mut update_mat = SMatrix::<f32, 4, 8>::zero();
+        let mut update_mat = SMatrix::<f32, 4, 8>::zeros();
         update_mat[(0, 0)] = 1.0;
         update_mat[(1, 1)] = 1.0;
         update_mat[(2, 2)] = 1.0;
@@ -80,7 +80,6 @@ impl KalmanFilter {
         let tmp = std.component_mul(&std);
         // convert 1-d array to 2-d array that has diagonal values of 1-d array
         *covariance = SMatrix::<f32, 8, 8>::from_diagonal(&tmp.transpose());
-        println!("covariance: {}", covariance);
     }
 
     pub fn predict(&mut self, mean: &mut StateMean, covariance: &mut StateCov) {
@@ -154,7 +153,5 @@ impl KalmanFilter {
         let innovation_cov = diag.component_mul(&diag);
         let cov = self.update_mat * covariance * self.update_mat.transpose();
         *projected_covariance = cov + innovation_cov;
-        println!("projected_mean: {:?}", projected_mean);
-        println!("projected_covariance: {:?}", projected_covariance);
     }
 }
