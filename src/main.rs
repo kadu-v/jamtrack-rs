@@ -1,8 +1,6 @@
-use std::{collections::HashMap, hash::Hash, thread::panicking};
+use std::collections::HashMap;
 
-use bytetrack_rs::{byte_tracker::ByteTracker, object::Object, strack::STrack};
-use nearly_eq::assert_nearly_eq;
-use num::iter;
+use bytetrack_rs::{byte_tracker::ByteTracker, strack::STrack};
 use serde::{Deserialize, Serialize};
 use serde_json;
 
@@ -130,8 +128,8 @@ TrackingResult struct
 #[derive(Debug, Clone)]
 struct Tracking {
     name: String,
-    fps: usize,
-    track_buffer: usize,
+    _fps: usize,
+    _track_buffer: usize,
     results: HashMap<usize, HashMap<usize, TrackingResult>>,
 }
 
@@ -157,8 +155,8 @@ impl Tracking {
 
         Self {
             name: tracking.name.clone(),
-            fps: tracking.fps,
-            track_buffer: tracking.track_buffer,
+            _fps: tracking.fps,
+            _track_buffer: tracking.track_buffer,
             results,
         }
     }
@@ -239,7 +237,7 @@ fn export_byte_track_with_yolox() {
     }
 
     let detection_results = detection.results;
-    let tracking_results = tracking.results;
+    let _tracking_results = tracking.results;
     let fps = detection.fps;
     let track_buffer = detection.track_buffer;
     let mut byte_tracker = ByteTracker::new(

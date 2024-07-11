@@ -4,7 +4,7 @@ use crate::{
     rect::Rect,
     strack::{STrack, STrackState},
 };
-use std::{collections::HashMap, thread::panicking, vec};
+use std::{collections::HashMap, vec};
 
 /*-----------------------------------------------------------------------------
 ByteTracker

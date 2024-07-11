@@ -1,6 +1,3 @@
-use core::panic;
-use std::thread::panicking;
-
 use crate::{
     kalman_filter::{KalmanFilter, StateCov, StateMean},
     rect::Rect,
@@ -57,6 +54,7 @@ impl STrack {
     }
 
     // This function is used in the test_joint_strack function in src/test_byte_tracker.rs
+    #[cfg(test)]
     pub(crate) fn dummy_strack(track_id: usize) -> Self {
         let kalman_filter = KalmanFilter::new(1.0 / 20., 1.0 / 160.);
         let mean = StateMean::zeros();

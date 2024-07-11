@@ -6,13 +6,6 @@ use std::vec;
 
 const LARGE: isize = 1000000;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-enum FPt {
-    FP1,
-    FP2,
-    FPDynamic,
-}
-
 /*-----------------------------------------------------------------------------
 lapjv.rs - Jonker-Volgenant linear assignment algorithm
 -----------------------------------------------------------------------------*/
