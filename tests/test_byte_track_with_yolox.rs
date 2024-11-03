@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use bytetrack_rs::byte_tracker::ByteTracker;
+use jamtrack_rs::byte_tracker::ByteTracker;
 use nearly_eq::assert_nearly_eq;
 use serde::Deserialize;
 use serde_json;
@@ -107,10 +107,10 @@ impl DetectionReuslt {
     }
 }
 
-impl Into<bytetrack_rs::object::Object> for DetectionReuslt {
-    fn into(self) -> bytetrack_rs::object::Object {
-        bytetrack_rs::object::Object::new(
-            bytetrack_rs::rect::Rect::new(
+impl Into<jamtrack_rs::object::Object> for DetectionReuslt {
+    fn into(self) -> jamtrack_rs::object::Object {
+        jamtrack_rs::object::Object::new(
+            jamtrack_rs::rect::Rect::new(
                 self.x,
                 self.y,
                 self.width,
@@ -185,10 +185,10 @@ impl TrackingResult {
     }
 }
 
-impl Into<bytetrack_rs::object::Object> for TrackingResult {
-    fn into(self) -> bytetrack_rs::object::Object {
-        bytetrack_rs::object::Object::new(
-            bytetrack_rs::rect::Rect::new(
+impl Into<jamtrack_rs::object::Object> for TrackingResult {
+    fn into(self) -> jamtrack_rs::object::Object {
+        jamtrack_rs::object::Object::new(
+            jamtrack_rs::rect::Rect::new(
                 self.x,
                 self.y,
                 self.width,
@@ -264,7 +264,7 @@ fn test_byte_track_with_yolox() {
             let EPS = 1.0e-2;
             let rect = output.get_rect();
             let expected_rect = {
-                let obj: bytetrack_rs::object::Object = <TrackingResult>::into(
+                let obj: jamtrack_rs::object::Object = <TrackingResult>::into(
                     expected_outputs
                         .get(&output.get_track_id())
                         .unwrap()
