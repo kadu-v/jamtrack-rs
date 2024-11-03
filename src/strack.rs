@@ -2,6 +2,7 @@ use crate::{
     kalman_filter::{KalmanFilter, StateCov, StateMean},
     rect::Rect,
 };
+use std::fmt::Debug;
 
 /*----------------------------------------------------------------------------
 STrack State enums
@@ -18,7 +19,17 @@ pub enum STrackState {
 STrack struct
 ----------------------------------------------------------------------------*/
 
-#[derive(Debug, Clone)]
+impl Debug for STrack {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "STrack {{ track_id: {}, frame_id: {}, start_frame_id: {}, tracklet_len: {}, state: {:?}, is_activated: {}, score: {}, rect: {:?} }}",
+            self.track_id, self.frame_id, self.start_frame_id, self.tracklet_len, self.state, self.is_activated, self.score, self.rect
+        )
+    }
+}
+
+#[derive(Clone)]
 pub struct STrack {
     kalman_filter: KalmanFilter,
     pub mean: StateMean,
@@ -155,9 +166,16 @@ impl STrack {
         }
         self.kalman_filter
             .predict(&mut self.mean, &mut self.covariance);
+        self.update_rect();
     }
 
     pub fn update(&mut self, new_track: &STrack, frame_id: usize) {
+        println!(
+            "new_track.get_rect().get_xyah(): {:?}, frame_id: {}, track_id: {}",
+            new_track.get_rect().get_xyah(),
+            frame_id,
+            self.track_id
+        );
         self.kalman_filter.update(
             &mut self.mean,
             &mut self.covariance,

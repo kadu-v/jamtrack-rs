@@ -1,0 +1,7 @@
+[project]
+name = "python"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = "==3.9.6"
+dependencies = ["numpy", "opencv-python", "lapx", "scipy", "torch"]

@@ -5,10 +5,8 @@ use nearly_eq::assert_nearly_eq;
 use serde::Deserialize;
 use serde_json;
 
-const TRACKING_JSON_PATH: &str =
-    "data/YOLOX_ncnn_palace/tracking_results_x.json";
-const DETECTION_JSON_PATH: &str =
-    "data/YOLOX_ncnn_palace/detection_results.json";
+const TRACKING_JSON_PATH: &str = "data/tracking_results.json";
+const DETECTION_JSON_PATH: &str = "data/detection_results.json";
 
 /*----------------------------------------------------------------------------
 Json schema for tracking results
@@ -54,8 +52,8 @@ struct TrackingResultJson {
 }
 
 /*----------------------------------------------------------------------------
-DetectionResult struct
-----------------------------------------------------------------------------*/
+ * DetectionResult struct
+ * ----------------------------------------------------------------------------*/
 #[derive(Debug, Clone)]
 struct Detection {
     name: String,
@@ -125,8 +123,8 @@ impl Into<bytetrack_rs::object::Object> for DetectionReuslt {
 }
 
 /*----------------------------------------------------------------------------
-TrackingResult struct
-----------------------------------------------------------------------------*/
+ * TrackingResult struct
+ * ----------------------------------------------------------------------------*/
 #[derive(Debug, Clone)]
 struct Tracking {
     name: String,
@@ -202,8 +200,8 @@ impl Into<bytetrack_rs::object::Object> for TrackingResult {
     }
 }
 /*----------------------------------------------------------------------------
-Read json
-----------------------------------------------------------------------------*/
+ * Read json
+ * ----------------------------------------------------------------------------*/
 fn read_detection_json(path: &str) -> Detection {
     let file = std::fs::File::open(path).unwrap();
     let detection: DetectionJson = serde_json::from_reader(file).unwrap();
@@ -254,9 +252,10 @@ fn test_byte_track_with_yolox() {
                 outputs
                     .iter()
                     .any(|output| output.get_track_id() == *track_id),
-                "Not found expected track_id: {} in frame_id: {}",
+                "Not found expected track_id: {} in frame_id: {}, outputs: {:?}",
                 track_id,
-                frame_id
+                frame_id,
+                outputs
             );
         }
 
