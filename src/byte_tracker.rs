@@ -5,7 +5,7 @@ use crate::{
     rect::Rect,
     strack::{STrack, STrackState},
 };
-use std::{collections::HashMap, fmt::format, vec};
+use std::{collections::HashMap, vec};
 /*-----------------------------------------------------------------------------
 ByteTracker
 -----------------------------------------------------------------------------*/
@@ -275,7 +275,7 @@ impl ByteTracker {
         Ok(output_stracks)
     }
 
-    pub fn joint_stracks(
+    pub(crate) fn joint_stracks(
         a_tracks: &Vec<STrack>,
         b_tracks: &Vec<STrack>,
     ) -> Vec<STrack> {
@@ -301,7 +301,7 @@ impl ByteTracker {
         res
     }
 
-    pub fn sub_stracks(
+    pub(crate) fn sub_stracks(
         a_tracks: &Vec<STrack>,
         b_tracks: &Vec<STrack>,
     ) -> Vec<STrack> {
@@ -321,7 +321,7 @@ impl ByteTracker {
         res
     }
 
-    pub fn remove_duplicate_stracks(
+    pub(crate) fn remove_duplicate_stracks(
         &self,
         a_stracks: &Vec<STrack>,
         b_stracks: &Vec<STrack>,
@@ -370,7 +370,7 @@ impl ByteTracker {
         return (a_res, b_res);
     }
 
-    pub fn linear_assignment(
+    pub(crate) fn linear_assignment(
         &self,
         cost_matrix: &Vec<Vec<f32>>,
         cost_matrix_len: usize,
@@ -459,7 +459,7 @@ impl ByteTracker {
         ious
     }
 
-    pub fn calc_iou_distance(
+    pub(crate) fn calc_iou_distance(
         a_tracks: &Vec<STrack>,
         b_tracks: &Vec<STrack>,
     ) -> Vec<Vec<f32>> {
@@ -487,7 +487,7 @@ impl ByteTracker {
         cost_matrix
     }
 
-    pub fn exec_lapjv(
+    pub(crate) fn exec_lapjv(
         cost: &Vec<Vec<f32>>,
         rowsol: &mut Vec<isize>,
         colsol: &mut Vec<isize>,

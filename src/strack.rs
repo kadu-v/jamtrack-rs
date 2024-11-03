@@ -117,7 +117,7 @@ impl STrack {
         return self.tracklet_len;
     }
 
-    pub fn activate(&mut self, frame_id: usize, track_id: usize) {
+    pub(crate) fn activate(&mut self, frame_id: usize, track_id: usize) {
         self.kalman_filter.initiate(
             &mut self.mean,
             &mut self.covariance,
@@ -136,7 +136,7 @@ impl STrack {
         self.tracklet_len = 0;
     }
 
-    pub fn re_activate(
+    pub(crate) fn re_activate(
         &mut self,
         new_track: &STrack,
         frame_id: usize,
@@ -160,7 +160,7 @@ impl STrack {
         self.tracklet_len = 0;
     }
 
-    pub fn predict(&mut self) {
+    pub(crate) fn predict(&mut self) {
         if self.state != STrackState::Tracked {
             self.mean[(0, 7)] = 0.;
         }
@@ -169,7 +169,7 @@ impl STrack {
         self.update_rect();
     }
 
-    pub fn update(&mut self, new_track: &STrack, frame_id: usize) {
+    pub(crate) fn update(&mut self, new_track: &STrack, frame_id: usize) {
         self.kalman_filter.update(
             &mut self.mean,
             &mut self.covariance,
@@ -185,15 +185,15 @@ impl STrack {
         self.tracklet_len += 1;
     }
 
-    pub fn mark_as_lost(&mut self) {
+    pub(crate) fn mark_as_lost(&mut self) {
         self.state = STrackState::Lost;
     }
 
-    pub fn mark_as_removed(&mut self) {
+    pub(crate) fn mark_as_removed(&mut self) {
         self.state = STrackState::Removed;
     }
 
-    pub fn update_rect(&mut self) {
+    pub(crate) fn update_rect(&mut self) {
         self.rect.tlwh[(0, 2)] = self.mean[(0, 2)] * self.mean[(0, 3)];
         self.rect.tlwh[(0, 3)] = self.mean[(0, 3)];
         self.rect.tlwh[(0, 0)] = self.mean[(0, 0)] - self.rect.width() / 2.;

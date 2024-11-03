@@ -316,7 +316,7 @@ fn ca_dense(
     return 0;
 }
 
-pub fn lapjv(
+pub(crate) fn lapjv(
     cost: &mut Vec<Vec<f64>>,
     x: &mut Vec<isize>,
     y: &mut Vec<isize>,
