@@ -170,12 +170,6 @@ impl STrack {
     }
 
     pub fn update(&mut self, new_track: &STrack, frame_id: usize) {
-        println!(
-            "new_track.get_rect().get_xyah(): {:?}, frame_id: {}, track_id: {}",
-            new_track.get_rect().get_xyah(),
-            frame_id,
-            self.track_id
-        );
         self.kalman_filter.update(
             &mut self.mean,
             &mut self.covariance,

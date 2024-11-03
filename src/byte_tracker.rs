@@ -55,10 +55,6 @@ impl ByteTracker {
 
         /*------------------ Step 1: Get detections -------------------------*/
 
-        println!(
-            "============================================= {} ==========================================",
-            format!("frame {}", self.frame_id).black().on_yellow()
-        );
         // Create new STracks using the result of object detections
         let mut det_stracks = Vec::new();
         let mut det_low_stracks = Vec::new();
@@ -66,10 +62,8 @@ impl ByteTracker {
         for obj in objects {
             let strack = STrack::new(obj.rect.clone(), obj.prob);
             if obj.prob >= self.track_thresh {
-                println!("{}: {:?}", "det_stracks".bright_green(), strack);
                 det_stracks.push(strack);
             } else {
-                println!("{}: {:?}", "det_low_stracks".bright_blue(), strack);
                 det_low_stracks.push(strack);
             }
         }
@@ -85,14 +79,9 @@ impl ByteTracker {
                 active_stracks.push(tracked_strack.clone());
             }
         }
-        println!(
-            "{}: {:?}",
-            "lost_stracks".black().on_red(),
-            self.lost_stracks
-        );
+
         let mut strack_pool =
             Self::joint_stracks(&active_stracks, &self.lost_stracks);
-        println!("{}: {:?}", "strack_pool".black().on_yellow(), strack_pool);
         // Predict the current location with KF
         for strack in strack_pool.iter_mut() {
             strack.predict();
@@ -153,20 +142,9 @@ impl ByteTracker {
         /*------------------ Step 3: Second association using low score dets -------------------------*/
         let mut current_lost_stracks = Vec::new();
         {
-            println!(
-                "{}: {:?}",
-                "remain_tracked_stracks".black().on_green(),
-                remain_tracked_stracks
-            );
-
             let iou_distance = Self::calc_iou_distance(
                 &remain_tracked_stracks,
                 &det_low_stracks,
-            );
-            println!(
-                "{}: {:?}",
-                "iou_distance".black().on_green(),
-                iou_distance
             );
 
             let (matches_idx, unmatched_track_idx, _) = self.linear_assignment(
@@ -203,30 +181,6 @@ impl ByteTracker {
                     current_lost_stracks.push(track.clone());
                     remain_tracked_stracks[unmatch_idx] = track; // update the track
                 }
-            }
-        }
-
-        for track in current_tracked_stracks.iter() {
-            println!(
-                "{}: {:?}",
-                "current_tracked_stracks".black().on_green(),
-                track
-            );
-        }
-        for track in remain_tracked_stracks.iter() {
-            println!(
-                "{}: {:?}",
-                "remain_tracked_stracks".black().on_red(),
-                track
-            );
-        }
-        if remain_det_stracks.len() > 0 {
-            for track in remain_det_stracks.iter() {
-                println!(
-                    "{}: {:?}",
-                    "remain_det_stracks".black().on_blue(),
-                    track
-                );
             }
         }
 
@@ -285,70 +239,14 @@ impl ByteTracker {
         self.tracked_stracks =
             Self::joint_stracks(&current_tracked_stracks, &refined_stracks);
 
-        println!(
-            "{}: {:?}",
-            "current_track_stracks".black().on_green(),
-            current_tracked_stracks
-        );
-        println!(
-            "{}: {:?}",
-            "refined_stracks".black().on_green(),
-            refined_stracks
-        );
-        println!(
-            "{}: {:?}",
-            "tracked_stracks".black().on_red(),
-            self.tracked_stracks
-        );
         // calculate the number of removed objects
         let subtrack_stracks =
             Self::sub_stracks(&self.lost_stracks, &self.tracked_stracks);
-
-        println!(
-            "{}: {:?}",
-            "lost_stracks".black().on_green(),
-            self.lost_stracks
-        );
-        println!(
-            "{}: {:?}",
-            "tracked_stracks".black().on_green(),
-            self.tracked_stracks
-        );
-        println!(
-            "{}: {:?}",
-            "subtrack_stracks".black().on_red(),
-            subtrack_stracks
-        );
         let joint_stracks =
             Self::joint_stracks(&subtrack_stracks, &current_lost_stracks);
-        println!(
-            "{}: {:?}",
-            "subtrack_stracks".black().on_green(),
-            subtrack_stracks
-        );
-        println!(
-            "{}: {:?}",
-            "current_lost_stracks".black().on_green(),
-            current_lost_stracks
-        );
-        println!("{}: {:?}", "joint_stracks".black().on_red(), joint_stracks);
         self.lost_stracks =
             Self::sub_stracks(&joint_stracks, &self.removed_stracks);
-        println!(
-            "{}: {:?}",
-            "joint_stracks".black().on_green(),
-            joint_stracks
-        );
-        println!(
-            "{}: {:?}",
-            "removed_stracks".black().on_green(),
-            self.removed_stracks
-        );
-        println!(
-            "{}: {:?}",
-            "lost_stracks".black().on_red(),
-            self.lost_stracks
-        );
+
         // calculate the number of removed objects
         self.removed_stracks = Self::joint_stracks(
             &self.removed_stracks,
@@ -360,26 +258,7 @@ impl ByteTracker {
                 &self.tracked_stracks,
                 &self.lost_stracks,
             );
-        println!(
-            "{}: {:?}",
-            "tracked_stracks".black().on_green(),
-            self.tracked_stracks
-        );
-        println!(
-            "{}: {:?}",
-            "lost_stracks".black().on_green(),
-            self.lost_stracks
-        );
-        println!(
-            "{}: {:?}",
-            "tracked_stracks_out".black().on_red(),
-            tracked_stracks_out
-        );
-        println!(
-            "{}: {:?}",
-            "lost_stracks_out".black().on_red(),
-            lost_stracks_out
-        );
+
         self.tracked_stracks = tracked_stracks_out;
         self.lost_stracks = lost_stracks_out;
 
@@ -453,12 +332,6 @@ impl ByteTracker {
         for (i, row) in ious.iter().enumerate() {
             for (j, &iou) in row.iter().enumerate() {
                 if iou < 0.15 {
-                    println!(
-                        "{}: {} {}",
-                        "iou".bright_red(),
-                        iou,
-                        "is less than 0.15"
-                    );
                     overlapping_combinations.push((i, j));
                 }
             }
