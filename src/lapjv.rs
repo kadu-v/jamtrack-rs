@@ -4,7 +4,7 @@ use crate::error::ByteTrackError::{self, LapjvError};
 Enum
 -----------------------------------------------------------------------------*/
 
-use std::{fmt::format, vec};
+use std::vec;
 
 const LARGE: isize = 1000000;
 

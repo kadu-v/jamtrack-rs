@@ -20,7 +20,6 @@ fn test_lapjv_3x3() {
 
 #[test]
 fn test_lapjv_4x4() {
-    let n = 4;
     let mut cost = vec![
         vec![1., 2., 3., 4.],
         vec![5., 6., 7., 8.],
@@ -37,7 +36,6 @@ fn test_lapjv_4x4() {
 
 #[test]
 fn test_lapjv_5x5() {
-    let n = 5;
     let mut cost = vec![
         vec![1., 2., 3., 4., 1.],
         vec![5., 6., 7., 8., 2.],
