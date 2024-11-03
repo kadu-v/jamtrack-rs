@@ -51,7 +51,7 @@ where
             * (self.tlwh[(0, 3)] + T::from(1).unwrap())
     }
 
-    pub fn calc_iou(&self, other: &Rect<T>) -> T {
+    pub(crate) fn calc_iou(&self, other: &Rect<T>) -> T {
         let box_area = other.area();
         let iw = (self.tlwh[(0, 0)] + self.tlwh[(0, 2)])
             .min(other.tlwh[(0, 0)] + other.tlwh[(0, 2)])
@@ -76,7 +76,7 @@ where
         iou
     }
 
-    pub fn get_xyah(&self) -> Xyah<T> {
+    pub(crate) fn get_xyah(&self) -> Xyah<T> {
         Matrix1x4::new(
             self.tlwh[(0, 0)] + self.tlwh[(0, 2)] / T::from(2).unwrap(),
             self.tlwh[(0, 1)] + self.tlwh[(0, 3)] / T::from(2).unwrap(),
