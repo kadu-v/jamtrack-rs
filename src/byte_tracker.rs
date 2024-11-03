@@ -4,8 +4,6 @@ use crate::{
     rect::Rect,
     strack::{STrack, STrackState},
 };
-use colored;
-use colored::Colorize;
 use std::{collections::HashMap, vec};
 /*-----------------------------------------------------------------------------
 ByteTracker
@@ -589,9 +587,9 @@ impl ByteTracker {
             n,
             y_c.len()
         );
-        let ret = lapjv(n, &mut cost_c, &mut x_c, &mut y_c);
+        let res = lapjv(&mut cost_c, &mut x_c, &mut y_c);
         // TODO: should use Result type instead of assert
-        assert!(ret == 0, "The return value of lapjv is negative");
+        assert!(res.is_ok(), "lapjv failed with error {:?}", res);
 
         let mut opt = 0.0;
         if n != n_cols {

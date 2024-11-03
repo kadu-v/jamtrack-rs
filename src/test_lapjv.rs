@@ -1,8 +1,10 @@
 use std::vec;
 
+use quickcheck::{Arbitrary, Gen};
+use rand::{self, Rng};
+
 #[test]
 fn test_lapjv_3x3() {
-    let n = 3;
     let mut cost = vec![
         vec![1.0, 2.0, 3.0],
         vec![4.0, 5.0, 6.0],
@@ -10,8 +12,8 @@ fn test_lapjv_3x3() {
     ];
     let mut x = vec![-1; 3];
     let mut y = vec![-1; 3];
-    let n_free_rows = crate::lapjv::lapjv(n, &mut cost, &mut x, &mut y);
-    assert_eq!(n_free_rows, 0);
+    let res = crate::lapjv::lapjv(&mut cost, &mut x, &mut y);
+    assert!(res.is_ok(), "expected Ok, got {:?}", res);
     assert_eq!(x, vec![2, 0, 1]);
     assert_eq!(y, vec![1, 2, 0]);
 }
@@ -27,8 +29,8 @@ fn test_lapjv_4x4() {
     ];
     let mut x = vec![-1; 4];
     let mut y = vec![-1; 4];
-    let n_free_rows = crate::lapjv::lapjv(n, &mut cost, &mut x, &mut y);
-    assert_eq!(n_free_rows, 0);
+    let res = crate::lapjv::lapjv(&mut cost, &mut x, &mut y);
+    assert!(res.is_ok(), "expected Ok, got {:?}", res);
     assert_eq!(x, vec![3, 0, 1, 2]);
     assert_eq!(y, vec![1, 2, 3, 0]);
 }
@@ -45,8 +47,8 @@ fn test_lapjv_5x5() {
     ];
     let mut x = vec![-1; 5];
     let mut y = vec![-1; 5];
-    let n_free_rows = crate::lapjv::lapjv(n, &mut cost, &mut x, &mut y);
-    assert_eq!(n_free_rows, 0);
+    let res = crate::lapjv::lapjv(&mut cost, &mut x, &mut y);
+    assert!(res.is_ok(), "expected Ok, got {:?}", res);
     assert_eq!(x, vec![0, 2, 1, 3, 4]);
     assert_eq!(y, vec![0, 2, 1, 3, 4]);
 }
@@ -97,8 +99,8 @@ fn test_lapjv_10x10_1() {
     ];
     let mut x = vec![-1; 10];
     let mut y = vec![-1; 10];
-    let n_free_rows = crate::lapjv::lapjv(10, &mut cost, &mut x, &mut y);
-    assert_eq!(n_free_rows, 0);
+    let res = crate::lapjv::lapjv(&mut cost, &mut x, &mut y);
+    assert!(res.is_ok(), "expected Ok, got {:?}", res);
     assert_eq!(x, vec![8, 0, 2, 7, 9, 3, 5, 4, 6, 1]);
     assert_eq!(y, vec![1, 9, 2, 5, 7, 6, 8, 3, 0, 4]);
 }
@@ -149,8 +151,39 @@ fn test_lapjv_10x10_2() {
     ];
     let mut x = vec![-1; 10];
     let mut y = vec![-1; 10];
-    let n_free_rows = crate::lapjv::lapjv(10, &mut cost, &mut x, &mut y);
-    assert_eq!(n_free_rows, 0);
+    let res = crate::lapjv::lapjv(&mut cost, &mut x, &mut y);
+    assert!(res.is_ok(), "expected Ok, got {:?}", res);
     assert_eq!(x, vec![5, 0, 1, 7, 9, 3, 2, 8, 4, 6]);
     assert_eq!(y, vec![1, 2, 6, 5, 8, 0, 9, 3, 7, 4]);
+}
+
+fn gen_cost_matrix(n: usize, gen: &mut Gen) -> Vec<Vec<f64>> {
+    let mut cost = vec![];
+    for _ in 0..n {
+        let row = vec![f64::arbitrary(gen); n];
+        cost.push(row);
+    }
+    cost
+}
+
+fn gen_vec_isize(n: usize, gen: &mut Gen) -> Vec<isize> {
+    let mut vec = vec![];
+    for _ in 0..n {
+        vec.push(isize::arbitrary(gen));
+    }
+    vec
+}
+
+#[test]
+fn test_quickcheck_lapjv() {
+    fn prop(_: usize) -> bool {
+        let mut rng = rand::thread_rng();
+        let n = rng.gen_range(1..=1000);
+        let mut cost = gen_cost_matrix(n, &mut Gen::new(rng.gen()));
+        let mut x = gen_vec_isize(n, &mut Gen::new(rng.gen()));
+        let mut y = gen_vec_isize(n, &mut Gen::new(rng.gen()));
+        let result = crate::lapjv::lapjv(&mut cost, &mut x, &mut y);
+        result.is_ok()
+    }
+    quickcheck::quickcheck(prop as fn(usize) -> bool);
 }

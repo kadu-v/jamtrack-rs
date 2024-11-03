@@ -1,6 +1,7 @@
 pub mod byte_tracker;
-pub mod kalman_filter;
-pub mod lapjv;
+pub mod error;
+mod kalman_filter;
+mod lapjv;
 pub mod object;
 pub mod rect;
 pub mod strack;

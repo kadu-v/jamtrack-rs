@@ -1,8 +1,10 @@
+use crate::error::ByteTrackError::{self, LapjvError};
+
 /*-----------------------------------------------------------------------------
 Enum
 -----------------------------------------------------------------------------*/
 
-use std::vec;
+use std::{fmt::format, vec};
 
 const LARGE: isize = 1000000;
 
@@ -10,7 +12,7 @@ const LARGE: isize = 1000000;
 lapjv.rs - Jonker-Volgenant linear assignment algorithm
 -----------------------------------------------------------------------------*/
 
-pub(crate) fn ccrt_dense(
+fn ccrt_dense(
     n: usize,
     cost: &Vec<Vec<f64>>,
     free_rows: &mut Vec<usize>,
@@ -79,7 +81,7 @@ pub(crate) fn ccrt_dense(
     return n_free_rows;
 }
 
-pub(crate) fn carr_dence(
+fn carr_dence(
     n: usize,
     cost: &Vec<Vec<f64>>,
     n_free_rows: usize,
@@ -150,7 +152,7 @@ pub(crate) fn carr_dence(
     return new_free_rows;
 }
 
-pub(crate) fn find_dense(
+fn find_dense(
     n: usize,
     lo: usize,
     d: &Vec<f64>,
@@ -178,7 +180,7 @@ pub(crate) fn find_dense(
     return hi;
 }
 
-pub(crate) fn scan_dense(
+fn scan_dense(
     n: usize,
     cost: &Vec<Vec<f64>>,
     plo: &mut usize,
@@ -230,7 +232,7 @@ pub(crate) fn scan_dense(
     return -1;
 }
 
-pub(crate) fn find_path_dense(
+fn find_path_dense(
     n: usize,
     cost: &Vec<Vec<f64>>,
     start_i: usize,
@@ -279,7 +281,7 @@ pub(crate) fn find_path_dense(
     return final_j;
 }
 
-pub(crate) fn ca_dense(
+fn ca_dense(
     n: usize,
     cost: &Vec<Vec<f64>>,
     n_free_rows: usize,
@@ -315,14 +317,25 @@ pub(crate) fn ca_dense(
 }
 
 pub fn lapjv(
-    n: usize,
     cost: &mut Vec<Vec<f64>>,
     x: &mut Vec<isize>,
     y: &mut Vec<isize>,
-) -> usize {
-    debug_assert!(cost.len() == n, "cost.len() must be equal to {}", n);
-    debug_assert!(x.len() == n, "x.len() must be equal to {}", n);
-    debug_assert!(y.len() == n, "y.len() must be equal to {}", n);
+) -> Result<(), ByteTrackError> {
+    let n = cost.len();
+    if n == 0 {
+        return Err(LapjvError(format!(
+            "cost.len() must be greater than 0, but cost.len() = {}",
+            n
+        )));
+    }
+    if n != x.len() || n != y.len() {
+        return Err(LapjvError(format!(
+            "cost.len() must be equal to x.len() and y.len(), but cost.len() = {}, x.len() = {}, y.len() = {}",
+            n,
+            x.len(),
+            y.len()
+        )));
+    }
 
     let mut free_rows = vec![0; n];
     let mut v = vec![0.0; n];
@@ -335,5 +348,11 @@ pub fn lapjv(
     if ret > 0 {
         ret = ca_dense(n, cost, ret, &mut free_rows, x, y, &mut v);
     }
-    return ret;
+    if ret > 0 {
+        return Err(LapjvError(format!(
+            "ret must be less than or equal to 0, but ret = {}",
+            ret
+        )));
+    }
+    Ok(())
 }
