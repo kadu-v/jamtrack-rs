@@ -5,8 +5,8 @@ use nearly_eq::assert_nearly_eq;
 use serde::Deserialize;
 use serde_json;
 
-const TRACKING_JSON_PATH: &str = "data/tracking_results.json";
-const DETECTION_JSON_PATH: &str = "data/detection_results.json";
+const TRACKING_JSON_PATH: &str = "data/jsons/tracking_results.json";
+const DETECTION_JSON_PATH: &str = "data/jsons/detection_results.json";
 
 /*----------------------------------------------------------------------------
 Json schema for tracking results
