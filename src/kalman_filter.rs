@@ -18,7 +18,7 @@ pub(crate) type StateHCov = SMatrix<f32, 4, 4>;
 Kalman Filter
 -------------------------------------------------------------------------------*/
 #[derive(Debug, Clone)]
-pub struct KalmanFilter {
+pub(crate) struct KalmanFilter {
     std_weight_position: f32,
     std_weight_velocity: f32,
     motion_mat: SMatrix<f32, 8, 8>, // 8x8
@@ -26,7 +26,10 @@ pub struct KalmanFilter {
 }
 
 impl KalmanFilter {
-    pub fn new(std_weight_position: f32, std_weight_velocity: f32) -> Self {
+    pub(crate) fn new(
+        std_weight_position: f32,
+        std_weight_velocity: f32,
+    ) -> Self {
         let ndim = 4;
         let dt = 1.0;
 
@@ -54,7 +57,7 @@ impl KalmanFilter {
         };
     }
 
-    pub fn initiate(
+    pub(crate) fn initiate(
         &self,
         mean: &mut StateMean,
         covariance: &mut StateCov,
@@ -81,7 +84,11 @@ impl KalmanFilter {
         *covariance = SMatrix::<f32, 8, 8>::from_diagonal(&tmp.transpose());
     }
 
-    pub fn predict(&mut self, mean: &mut StateMean, covariance: &mut StateCov) {
+    pub(crate) fn predict(
+        &mut self,
+        mean: &mut StateMean,
+        covariance: &mut StateCov,
+    ) {
         let mut std = SMatrix::<f32, 1, 8>::zeros();
         std[0] = self.std_weight_position * mean[(0, 3)];
         std[1] = self.std_weight_position * mean[(0, 3)];
@@ -100,7 +107,7 @@ impl KalmanFilter {
         *covariance = tmp + motion_cov;
     }
 
-    pub fn update(
+    pub(crate) fn update(
         &mut self,
         mean: &mut StateMean,      // 1x8
         covariance: &mut StateCov, // 8x8
@@ -128,7 +135,7 @@ impl KalmanFilter {
             kalman_gain.transpose() * projected_covariance * kalman_gain;
     }
 
-    pub fn project(
+    pub(crate) fn project(
         &self,
         projected_mean: &mut StateHMean, // 1x4
         projected_covariance: &mut StateHCov, // 4x4
