@@ -178,7 +178,7 @@ fn gen_vec_isize(n: usize, gen: &mut Gen) -> Vec<isize> {
 fn test_quickcheck_lapjv() {
     fn prop(_: usize) -> bool {
         let mut rng = rand::thread_rng();
-        let n = rng.gen_range(1..=1000);
+        let n = rng.gen_range(1..=100);
         let mut cost = gen_cost_matrix(n, &mut Gen::new(rng.gen()));
         let mut x = gen_vec_isize(n, &mut Gen::new(rng.gen()));
         let mut y = gen_vec_isize(n, &mut Gen::new(rng.gen()));

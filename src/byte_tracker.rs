@@ -1,10 +1,11 @@
 use crate::{
+    error::ByteTrackError,
     lapjv::lapjv,
     object::Object,
     rect::Rect,
     strack::{STrack, STrackState},
 };
-use std::{collections::HashMap, vec};
+use std::{collections::HashMap, fmt::format, vec};
 /*-----------------------------------------------------------------------------
 ByteTracker
 -----------------------------------------------------------------------------*/
@@ -48,7 +49,10 @@ impl ByteTracker {
         }
     }
 
-    pub fn update(&mut self, objects: &Vec<Object>) -> Vec<STrack> {
+    pub fn update(
+        &mut self,
+        objects: &Vec<Object>,
+    ) -> Result<Vec<STrack>, ByteTrackError> {
         self.frame_id += 1;
 
         /*------------------ Step 1: Get detections -------------------------*/
@@ -101,7 +105,7 @@ impl ByteTracker {
                     strack_pool.len(),
                     det_stracks.len(),
                     self.match_thresh,
-                );
+                )?;
 
             for (idx, sol) in matches_idx {
                 debug_assert!(sol >= 0, "sol is negative {}", sol);
@@ -145,12 +149,13 @@ impl ByteTracker {
                 &det_low_stracks,
             );
 
-            let (matches_idx, unmatched_track_idx, _) = self.linear_assignment(
-                &iou_distance,
-                remain_tracked_stracks.len(),
-                det_low_stracks.len(),
-                0.5,
-            );
+            let (matches_idx, unmatched_track_idx, _) = self
+                .linear_assignment(
+                    &iou_distance,
+                    remain_tracked_stracks.len(),
+                    det_low_stracks.len(),
+                    0.5,
+                )?;
 
             for (idx, sol) in matches_idx {
                 debug_assert!(sol >= 0, "sol is negative {}", sol);
@@ -196,7 +201,7 @@ impl ByteTracker {
                     non_active_stracks.len(),
                     remain_det_stracks.len(),
                     0.7,
-                );
+                )?;
 
             for &(idx, sol) in matches_idx.iter() {
                 let mut track = non_active_stracks[idx].clone();
@@ -267,7 +272,7 @@ impl ByteTracker {
             }
         }
 
-        output_stracks
+        Ok(output_stracks)
     }
 
     pub fn joint_stracks(
@@ -371,7 +376,8 @@ impl ByteTracker {
         cost_matrix_len: usize,
         cost_matrix_row_len: usize,
         thresh: f32,
-    ) -> (Vec<(usize, isize)>, Vec<usize>, Vec<usize>) {
+    ) -> Result<(Vec<(usize, isize)>, Vec<usize>, Vec<usize>), ByteTrackError>
+    {
         let mut matches = Vec::new();
         let mut a_unmatched = Vec::new();
         let mut b_unmatched = Vec::new();
@@ -384,11 +390,23 @@ impl ByteTracker {
             for i in 0..cost_matrix_row_len {
                 b_unmatched.push(i);
             }
-            return (matches, a_unmatched, b_unmatched);
+            return Ok((matches, a_unmatched, b_unmatched));
         }
 
-        debug_assert!(cost_matrix.len() == cost_matrix_len);
-        debug_assert!(cost_matrix[0].len() == cost_matrix_row_len);
+        if cost_matrix.len() != cost_matrix_len {
+            return Err(ByteTrackError::LapjvError(format!(
+                "cost_matrix length {} is not equal to cost_matrix_len {}",
+                cost_matrix.len(),
+                cost_matrix_len
+            )));
+        }
+        if cost_matrix[0].len() != cost_matrix_row_len {
+            return Err(ByteTrackError::LapjvError(format!(
+                "cost_matrix[0] length {} is not equal to cost_matrix_row_len {}",
+                cost_matrix[0].len(),
+                cost_matrix_row_len
+            )));
+        }
 
         let mut rowsol = vec![-1; cost_matrix_len];
         let mut colsol = vec![0; cost_matrix_row_len];
@@ -420,7 +438,7 @@ impl ByteTracker {
             }
         }
 
-        (matches, a_unmatched, b_unmatched)
+        Ok((matches, a_unmatched, b_unmatched))
     }
 
     pub fn calc_ious(
@@ -476,51 +494,47 @@ impl ByteTracker {
         extend_cost: bool,
         cost_limit: f64,
         return_cost: bool,
-    ) -> f64 {
-        debug_assert!(cost.len() > 0, "cost matrix is empty");
+    ) -> Result<f64, ByteTrackError> {
+        if cost.len() == 0 {
+            return Err(ByteTrackError::ExecLapjvError(format!(
+                "cost matrix is empty, cost.len() = {}",
+                cost.len()
+            )));
+        }
         let mut cost_c = vec![vec![0.0; cost[0].len()]; cost.len()];
 
         let mut cost_c_extended = vec![vec![0.0f64; cost[0].len()]; cost.len()];
         let n_rows = cost.len();
         let n_cols = cost[0].len();
 
-        debug_assert!(
-            rowsol.len() == n_rows,
-            "rowsol length {} is not equal to n_rows {}",
-            rowsol.len(),
-            n_cols
-        );
-        debug_assert!(
-            colsol.len() == n_cols,
-            "colsol length {} is not equal to n_cols {}",
-            colsol.len(),
-            n_rows
-        );
-
-        let mut n = 0;
-
-        if n_rows == n_cols {
-            n = n_rows;
-        } else {
-            assert!(
-                extend_cost,
-                "extend_cost should be true when n_rows != n_cols"
-            );
+        if rowsol.len() != n_rows || colsol.len() != n_cols {
+            return Err(ByteTrackError::ExecLapjvError(format!(
+                "rowsol length {} is not equal to n_rows {} or colsol length {} is not equal to n_cols {}",
+                rowsol.len(),
+                n_rows,
+                colsol.len(),
+                n_cols
+            )));
         }
 
-        assert!(
-            cost_limit < f64::MAX,
-            "cost_limit should be less than f32::MAX"
-        );
+        let mut n = 0;
+        if n_rows == n_cols {
+            n = n_rows;
+        }
+
+        if n_rows != n_cols && !extend_cost {
+            return Err(ByteTrackError::ExecLapjvError(format!(
+                "When n_rows {} is not equal to n_cols {} and extend_cost is false, n_rows should be equal to n_cols",
+                n_rows,
+                n_cols
+            )));
+        }
+
         if extend_cost || cost_limit < f64::MAX {
             n = n_rows + n_cols;
             cost_c_extended.clear();
             cost_c_extended.resize(n, vec![0.0; n]);
 
-            debug_assert!(
-                cost_limit < f64::MAX,
-                "cost_limit is not less than f32::MAX"
-            );
             if cost_limit < f64::MAX {
                 for i in 0..cost_c_extended.len() {
                     for j in 0..cost_c_extended[i].len() {
@@ -562,34 +576,7 @@ impl ByteTracker {
         let mut x_c = vec![-1; n];
         let mut y_c = vec![-1; n];
 
-        // TODO: this assertions should be moved to the lapjv function
-        debug_assert!(
-            cost_c.len() == n,
-            "cost_c length is not equal to {}, but got {}",
-            n,
-            cost_c.len()
-        );
-        debug_assert!(
-            cost_c[0].len() == n,
-            "cost_c[0] length is not equal to {}, but got {}",
-            n,
-            cost_c[0].len()
-        );
-        debug_assert!(
-            x_c.len() == n,
-            "x_c length is not equal to {}, but got {}",
-            n,
-            x_c.len()
-        );
-        debug_assert!(
-            y_c.len() == n,
-            "y_c length is not equal to {}, but got {}",
-            n,
-            y_c.len()
-        );
-        let res = lapjv(&mut cost_c, &mut x_c, &mut y_c);
-        // TODO: should use Result type instead of assert
-        assert!(res.is_ok(), "lapjv failed with error {:?}", res);
+        lapjv(&mut cost_c, &mut x_c, &mut y_c)?;
 
         let mut opt = 0.0;
         if n != n_cols {
@@ -625,6 +612,6 @@ impl ByteTracker {
             }
         }
 
-        opt
+        Ok(opt)
     }
 }

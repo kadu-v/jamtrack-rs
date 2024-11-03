@@ -2,6 +2,8 @@ use nearly_eq::assert_nearly_eq;
 
 use crate::byte_tracker::ByteTracker;
 use crate::strack::STrack;
+use quickcheck::{Arbitrary, Gen};
+use rand::{self, Rng};
 
 #[test]
 fn test_joint_strack() {
@@ -73,7 +75,8 @@ fn test_exec_lapjv_3x3() {
         true,
         (f32::MAX / 2.) as f64,
         true,
-    );
+    )
+    .unwrap();
     assert_eq!(opt, 15.0);
     assert_eq!(rowsol, vec![2, 0, 1]);
     assert_eq!(colsol, vec![1, 2, 0]);
@@ -96,7 +99,8 @@ fn test_exec_lapjv_4x4() {
         true,
         (f32::MAX / 2.) as f64,
         true,
-    );
+    )
+    .unwrap();
     assert_eq!(opt, 34.0);
     assert_eq!(rowsol, vec![3, 0, 1, 2]);
     assert_eq!(colsol, vec![1, 2, 3, 0]);
@@ -120,7 +124,8 @@ fn test_exec_lapjv_5x5() {
         true,
         (f32::MAX / 2.) as f64,
         true,
-    );
+    )
+    .unwrap();
     assert_eq!(opt, 39.0);
     assert_eq!(rowsol, vec![0, 2, 1, 3, 4]);
     assert_eq!(colsol, vec![0, 2, 1, 3, 4]);
@@ -179,7 +184,8 @@ fn test_exec_lapjv_10x10() {
         true,
         (f32::MAX / 2.) as f64,
         true,
-    );
+    )
+    .unwrap();
     assert_nearly_eq!(opt, 1.14809350669384, 0.0001);
     assert_eq!(rowsol, vec![8, 0, 2, 7, 9, 3, 5, 4, 6, 1]);
     assert_eq!(colsol, vec![1, 9, 2, 5, 7, 6, 8, 3, 0, 4]);
@@ -230,8 +236,48 @@ fn test_exec_lapjv_8x10() {
         true,
         10.,
         true,
-    );
+    )
+    .unwrap();
     assert_nearly_eq!(opt, 0.5487068928778172, 0.001);
     assert_eq!(rowsol, vec![6, 0, 2, 7, 9, 3, 5, 8]);
     assert_eq!(colsol, vec![1, -1, 2, 5, -1, 6, 0, 3, 7, 4]);
+}
+
+fn gen_cost_matrix(n: usize, m: usize, gen: &mut Gen) -> Vec<Vec<f32>> {
+    let mut cost = vec![];
+    for _ in 0..n {
+        let row = vec![f32::arbitrary(gen); m];
+        cost.push(row);
+    }
+    cost
+}
+
+fn gen_vec_isize(n: usize, gen: &mut Gen) -> Vec<isize> {
+    let mut vec = vec![];
+    for _ in 0..n {
+        vec.push(isize::arbitrary(gen));
+    }
+    vec
+}
+
+#[test]
+fn test_quickcheck_exec_lapjv() {
+    fn prop(_: usize) -> bool {
+        let mut rng = rand::thread_rng();
+        let n = rng.gen_range(1..=100);
+        let m = rng.gen_range(1..=100);
+        let cost = gen_cost_matrix(n, m, &mut Gen::new(rng.gen()));
+        let mut rowsol = gen_vec_isize(n, &mut Gen::new(rng.gen()));
+        let mut colsol = gen_vec_isize(m, &mut Gen::new(rng.gen()));
+        let opt = ByteTracker::exec_lapjv(
+            &cost,
+            &mut rowsol,
+            &mut colsol,
+            true,
+            (f32::MAX / 2.) as f64,
+            true,
+        );
+        opt.is_ok()
+    }
+    quickcheck::quickcheck(prop as fn(usize) -> bool);
 }

@@ -43,7 +43,7 @@ fn ccrt_dense(
 
     let mut unique = vec![true; n];
     let mut j = n;
-    assert!(j > 0, "n must be greater than 0");
+    debug_assert!(j > 0, "n must be greater than 0");
     {
         while j > 0 {
             j -= 1;
@@ -298,8 +298,8 @@ fn ca_dense(
         let mut k = 0;
 
         let mut j = find_path_dense(n, cost, free_row, y, v, &mut pred);
-        assert!(j >= 0, "j must be greater than or equal to 0");
-        assert!(j < n as isize, "j must be less than n as isize");
+        debug_assert!(j >= 0, "j must be greater than or equal to 0");
+        debug_assert!(j < n as isize, "j must be less than n as isize");
         while i != free_row as isize {
             i = pred[j as usize] as isize;
             y[j as usize] = i;
@@ -310,7 +310,7 @@ fn ca_dense(
             x[i as usize] = tmp;
 
             k += 1;
-            assert!(k <= n, "k must be less than or equal to n");
+            debug_assert!(k <= n, "k must be less than or equal to n");
         }
     }
     return 0;

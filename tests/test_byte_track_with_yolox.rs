@@ -242,7 +242,7 @@ fn test_byte_track_with_yolox() {
             .iter()
             .map(|v| <DetectionReuslt>::into(v.clone()))
             .collect();
-        let outputs = byte_tracker.update(&objects);
+        let outputs = byte_tracker.update(&objects).unwrap();
 
         let expected_outputs = tracking_results.get(&frame_id).unwrap();
 
