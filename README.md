@@ -5,7 +5,7 @@
     <img src="./data/logo/jam.jpeg" width="200">
 </p>
 
-JamTrack-rs is a Rust crate that provides a simple interface to use the ByteTrack model.
+JamTrack-rs is a Rust crate that provides a simple interface to use the [ByteTrack](https://arxiv.org/abs/2110.06864)
 
 
 ## Demo Video
@@ -21,5 +21,5 @@ The video uses [NHKクリエイティブ・ライブラリー](https://www2.nhk.
 1. Add the following to your `Cargo.toml`:
     ```toml
     [dependencies]
-    jamtrack-rs = "0.1.0"
+    jamtrack-rs = { git = "git@github.com:kadu-v/jamtrack-rs.git", version = "0.1.0" }
     ```
