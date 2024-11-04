@@ -122,8 +122,6 @@ impl ByteTracker {
                         -1, /* defualt value */
                     );
                     refined_stracks.push(track.clone());
-
-                    strack_pool[idx] = track; // update the track
                 }
             }
 
@@ -173,7 +171,6 @@ impl ByteTracker {
                         -1, /* defulat value */
                     );
                     refined_stracks.push(track.clone());
-                    remain_tracked_stracks[idx] = track; // update the track
                 }
             }
 
@@ -182,7 +179,6 @@ impl ByteTracker {
                 if track.get_strack_state() != STrackState::Lost {
                     track.mark_as_lost();
                     current_lost_stracks.push(track.clone());
-                    remain_tracked_stracks[unmatch_idx] = track; // update the track
                 }
             }
         }
@@ -207,14 +203,12 @@ impl ByteTracker {
                 let mut track = non_active_stracks[idx].clone();
                 track.update(&remain_det_stracks[sol as usize], self.frame_id);
                 current_tracked_stracks.push(track.clone());
-                non_active_stracks[idx] = track; // update the track
             }
 
             for &unmatch_idx in unmatch_unconfirmed_idx.iter() {
                 let mut track = non_active_stracks[unmatch_idx].clone();
                 track.mark_as_removed();
                 current_removed_stracks.push(track.clone());
-                non_active_stracks[unmatch_idx] = track;
             }
 
             // add new stracks
@@ -226,7 +220,6 @@ impl ByteTracker {
                 self.track_id_count += 1;
                 track.activate(self.frame_id, self.track_id_count);
                 current_tracked_stracks.push(track.clone());
-                remain_det_stracks[unmatch_idx] = track; // update the track
             }
         }
         /*------------------ Step 5: Update state -------------------------*/
@@ -236,7 +229,6 @@ impl ByteTracker {
                 let mut track = lost_track.clone();
                 track.mark_as_removed();
                 current_removed_stracks.push(lost_track.clone());
-                self.lost_stracks[i] = track; // update the track
             }
         }
         self.tracked_stracks =
