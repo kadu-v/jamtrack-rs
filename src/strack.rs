@@ -8,7 +8,7 @@ use std::fmt::Debug;
  * STrack State enums
  * ---------------------------------------------------------------------------- */
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum STrackState {
+pub(crate) enum STrackState {
     New,
     Tracked,
     Lost,
@@ -30,7 +30,7 @@ impl Debug for STrack {
 }
 
 #[derive(Clone)]
-pub struct STrack {
+pub(crate) struct STrack {
     kalman_filter: KalmanFilter,
     mean: StateMean,
     covariance: StateCov,
@@ -45,7 +45,7 @@ pub struct STrack {
 }
 
 impl STrack {
-    pub fn new(rect: Rect<f32>, score: f32) -> Self {
+    pub(crate) fn new(rect: Rect<f32>, score: f32) -> Self {
         let kalman_filter = KalmanFilter::new(1.0 / 20., 1.0 / 160.);
         let mean = StateMean::zeros();
         let covariance = StateCov::zeros();
@@ -86,43 +86,38 @@ impl STrack {
     }
 
     #[inline(always)]
-    pub fn get_rect(&self) -> Rect<f32> {
+    pub(crate) fn get_rect(&self) -> Rect<f32> {
         return self.rect.clone();
     }
 
     #[inline(always)]
-    pub fn get_strack_state(&self) -> STrackState {
+    pub(crate) fn get_strack_state(&self) -> STrackState {
         return self.state;
     }
 
     #[inline(always)]
-    pub fn is_activated(&self) -> bool {
+    pub(crate) fn is_activated(&self) -> bool {
         return self.is_activated;
     }
 
     #[inline(always)]
-    pub fn get_score(&self) -> f32 {
+    pub(crate) fn get_score(&self) -> f32 {
         return self.score;
     }
 
     #[inline(always)]
-    pub fn get_track_id(&self) -> usize {
+    pub(crate) fn get_track_id(&self) -> usize {
         return self.track_id;
     }
 
     #[inline(always)]
-    pub fn get_frame_id(&self) -> usize {
+    pub(crate) fn get_frame_id(&self) -> usize {
         return self.frame_id;
     }
 
     #[inline(always)]
-    pub fn get_start_frame_id(&self) -> usize {
+    pub(crate) fn get_start_frame_id(&self) -> usize {
         return self.start_frame_id;
-    }
-
-    #[inline(always)]
-    pub fn get_tracklet_length(&self) -> usize {
-        return self.tracklet_len;
     }
 
     pub(crate) fn activate(&mut self, frame_id: usize, track_id: usize) {
