@@ -8,9 +8,9 @@ use serde_json;
 const TRACKING_JSON_PATH: &str = "data/jsons/tracking_results.json";
 const DETECTION_JSON_PATH: &str = "data/jsons/detection_results.json";
 
-/*----------------------------------------------------------------------------
-Json schema for tracking results
-----------------------------------------------------------------------------*/
+/* ----------------------------------------------------------------------------
+ * Json schema for tracking results
+ * ---------------------------------------------------------------------------- */
 
 #[derive(Debug, Deserialize)]
 struct DetectionJson {
@@ -30,9 +30,9 @@ struct DetectionReusltJson {
     height: String,
 }
 
-/*----------------------------------------------------------------------------
-Json schema for tracking results
-----------------------------------------------------------------------------*/
+/* ----------------------------------------------------------------------------
+ * Json schema for tracking results
+ * ---------------------------------------------------------------------------- */
 #[derive(Debug, Deserialize)]
 struct TrackingJson {
     name: String,
@@ -51,9 +51,9 @@ struct TrackingResultJson {
     height: String,
 }
 
-/*----------------------------------------------------------------------------
+/* ----------------------------------------------------------------------------
  * DetectionResult struct
- * ----------------------------------------------------------------------------*/
+ * ---------------------------------------------------------------------------- */
 #[derive(Debug, Clone)]
 struct Detection {
     name: String,
@@ -118,13 +118,14 @@ impl Into<jamtrack_rs::object::Object> for DetectionReuslt {
             ),
             0,
             self.prob,
+            None,
         )
     }
 }
 
-/*----------------------------------------------------------------------------
+/* ----------------------------------------------------------------------------
  * TrackingResult struct
- * ----------------------------------------------------------------------------*/
+ * ---------------------------------------------------------------------------- */
 #[derive(Debug, Clone)]
 struct Tracking {
     name: String,
@@ -196,12 +197,13 @@ impl Into<jamtrack_rs::object::Object> for TrackingResult {
             ),
             self.track_id,
             0.0,
+            None,
         )
     }
 }
-/*----------------------------------------------------------------------------
+/* ----------------------------------------------------------------------------
  * Read json
- * ----------------------------------------------------------------------------*/
+ * ---------------------------------------------------------------------------- */
 fn read_detection_json(path: &str) -> Detection {
     let file = std::fs::File::open(path).unwrap();
     let detection: DetectionJson = serde_json::from_reader(file).unwrap();
@@ -251,7 +253,7 @@ fn test_byte_track_with_yolox() {
             assert!(
                 outputs
                     .iter()
-                    .any(|output| output.get_track_id() == *track_id),
+                    .any(|output| output.get_track_id().unwrap() == *track_id),
                 "Not found expected track_id: {} in frame_id: {}, outputs: {:?}",
                 track_id,
                 frame_id,
@@ -266,16 +268,16 @@ fn test_byte_track_with_yolox() {
             let expected_rect = {
                 let obj: jamtrack_rs::object::Object = <TrackingResult>::into(
                     expected_outputs
-                        .get(&output.get_track_id())
+                        .get(&output.get_track_id().unwrap())
                         .unwrap()
                         .clone(),
                 );
-                obj.rect
+                obj.get_rect()
             };
             assert!(
-                expected_outputs.contains_key(&output.get_track_id()),
+                expected_outputs.contains_key(&output.get_track_id().unwrap()),
                 "Not found output track_id: {} in frame_id: {}",
-                output.get_track_id(),
+                output.get_track_id().unwrap(),
                 frame_id,
             );
             assert_nearly_eq!(rect.x(), expected_rect.x(), EPS);

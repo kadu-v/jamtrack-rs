@@ -6,9 +6,9 @@ use serde::Deserialize;
 use serde_json;
 
 const DETECTION_JSON_PATH: &str = "data/jsons/detection_results.json";
-/*----------------------------------------------------------------------------
-Json schema for tracking results
-----------------------------------------------------------------------------*/
+/* ----------------------------------------------------------------------------
+ * Json schema for tracking results
+ * ---------------------------------------------------------------------------- */
 
 #[derive(Debug, Deserialize)]
 struct DetectionJson {
@@ -39,11 +39,11 @@ impl From<DetectionResultJson> for Object {
         let height = detection_result.height.parse::<f32>().unwrap();
         let prob = detection_result.prob.parse::<f32>().unwrap();
         let rect = Rect::new(x, y, width, height);
-        Object::new(rect, 0, prob)
+        Object::new(rect, 0, prob, None)
     }
 }
 
-/*----------------------------------------------------------------------------
+/* ----------------------------------------------------------------------------
  * Read json
  * ----------------------------------------------------------------------------*/
 fn read_detection_json(path: &str) -> DetectionJson {

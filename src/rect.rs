@@ -2,22 +2,22 @@ use nalgebra::Matrix1x4;
 use num::Float;
 use std::fmt::Debug;
 
-/*------------------------------------------------------------------------------
-Type aliases
-------------------------------------------------------------------------------*/
+/* ------------------------------------------------------------------------------
+ * Type aliases
+ * ------------------------------------------------------------------------------ */
 // type Tlwh<T> = Matrix1x4<T>;
 
 type Xyah<T> = Matrix1x4<T>;
 
-/*------------------------------------------------------------------------------
-Rect struct
-------------------------------------------------------------------------------*/
+/* ------------------------------------------------------------------------------
+ * Rect struct
+ * ------------------------------------------------------------------------------ */
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Rect<T>
 where
     T: Debug + Float,
 {
-    pub tlwh: Matrix1x4<T>,
+    tlwh: Matrix1x4<T>,
 }
 
 impl<T> Rect<T>
@@ -30,20 +30,44 @@ where
         Self { tlwh }
     }
 
+    #[inline(always)]
     pub fn x(&self) -> T {
         self.tlwh[(0, 0)]
     }
 
+    #[inline(always)]
+    pub(crate) fn set_x(&mut self, x: T) {
+        self.tlwh[(0, 0)] = x;
+    }
+
+    #[inline(always)]
     pub fn y(&self) -> T {
         self.tlwh[(0, 1)]
     }
 
+    #[inline(always)]
+    pub(crate) fn set_y(&mut self, y: T) {
+        self.tlwh[(0, 1)] = y;
+    }
+
+    #[inline(always)]
     pub fn width(&self) -> T {
         self.tlwh[(0, 2)]
     }
 
+    #[inline(always)]
+    pub(crate) fn set_width(&mut self, width: T) {
+        self.tlwh[(0, 2)] = width;
+    }
+
+    #[inline(always)]
     pub fn height(&self) -> T {
         self.tlwh[(0, 3)]
+    }
+
+    #[inline(always)]
+    pub(crate) fn set_height(&mut self, height: T) {
+        self.tlwh[(0, 3)] = height;
     }
 
     pub fn area(&self) -> T {

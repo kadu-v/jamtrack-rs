@@ -6,9 +6,9 @@ use crate::{
     strack::{STrack, STrackState},
 };
 use std::{collections::HashMap, vec};
-/*-----------------------------------------------------------------------------
-ByteTracker
------------------------------------------------------------------------------*/
+/* ----------------------------------------------------------------------------
+ * ByteTracker
+ * ---------------------------------------------------------------------------- */
 
 #[derive(Debug)]
 pub struct ByteTracker {
@@ -52,18 +52,19 @@ impl ByteTracker {
     pub fn update(
         &mut self,
         objects: &Vec<Object>,
-    ) -> Result<Vec<STrack>, ByteTrackError> {
+    ) -> Result<Vec<Object>, ByteTrackError> {
         self.frame_id += 1;
 
-        /*------------------ Step 1: Get detections -------------------------*/
+        /* ------------------ Step 1: Get detections ------------------------- */
 
         // Create new STracks using the result of object detections
         let mut det_stracks = Vec::new();
         let mut det_low_stracks = Vec::new();
 
         for obj in objects {
-            let strack = STrack::new(obj.rect.clone(), obj.prob);
-            if obj.prob >= self.track_thresh {
+            let strack =
+                STrack::new(obj.get_rect(), obj.get_prob(), obj.get_label());
+            if obj.get_prob() >= self.track_thresh {
                 det_stracks.push(strack);
             } else {
                 det_low_stracks.push(strack);
@@ -89,7 +90,7 @@ impl ByteTracker {
             strack.predict();
         }
 
-        /*------------------ Step 2: First association with IoU -------------------------*/
+        /* ------------------ Step 2: First association with IoU ------------------------- */
         let mut current_tracked_stracks = Vec::new();
         let mut remain_tracked_stracks = Vec::new();
         let mut remain_det_stracks = Vec::new();
@@ -139,7 +140,7 @@ impl ByteTracker {
             }
         }
 
-        /*------------------ Step 3: Second association using low score dets -------------------------*/
+        /* ------------------ Step 3: Second association using low score dets ------------------------- */
         let mut current_lost_stracks = Vec::new();
         {
             let iou_distance = Self::calc_iou_distance(
@@ -183,7 +184,7 @@ impl ByteTracker {
             }
         }
 
-        /*------------------ Step 4: Init new stracks -------------------------*/
+        /* ------------------ Step 4: Init new stracks ------------------------- */
         let mut current_removed_stracks = Vec::new();
         {
             let iou_distance = Self::calc_iou_distance(
@@ -222,7 +223,7 @@ impl ByteTracker {
                 current_tracked_stracks.push(track.clone());
             }
         }
-        /*------------------ Step 5: Update state -------------------------*/
+        /* ------------------ Step 5: Update state ------------------------- */
         for i in 0..self.lost_stracks.len() {
             let lost_track = &self.lost_stracks[i];
             if self.frame_id - lost_track.get_frame_id() > self.max_time_lost {
@@ -260,7 +261,7 @@ impl ByteTracker {
         let mut output_stracks = Vec::new();
         for track in self.tracked_stracks.iter() {
             if track.is_activated() {
-                output_stracks.push(track.clone());
+                output_stracks.push(track.into());
             }
         }
 

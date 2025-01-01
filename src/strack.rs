@@ -4,20 +4,20 @@ use crate::{
 };
 use std::fmt::Debug;
 
-/*----------------------------------------------------------------------------
-STrack State enums
-----------------------------------------------------------------------------*/
+/* ----------------------------------------------------------------------------
+ * STrack State enums
+ * ---------------------------------------------------------------------------- */
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum STrackState {
+pub(crate) enum STrackState {
     New,
     Tracked,
     Lost,
     Removed,
 }
 
-/*----------------------------------------------------------------------------
-STrack struct
-----------------------------------------------------------------------------*/
+/* ----------------------------------------------------------------------------
+ * STrack struct
+ * ---------------------------------------------------------------------------- */
 
 impl Debug for STrack {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -30,22 +30,23 @@ impl Debug for STrack {
 }
 
 #[derive(Clone)]
-pub struct STrack {
+pub(crate) struct STrack {
     kalman_filter: KalmanFilter,
-    pub mean: StateMean,
-    pub covariance: StateCov,
-    pub rect: Rect<f32>,
-    pub state: STrackState,
-    pub is_activated: bool,
-    pub score: f32,
-    pub track_id: usize,
-    pub frame_id: usize,
-    pub start_frame_id: usize,
-    pub tracklet_len: usize,
+    mean: StateMean,
+    covariance: StateCov,
+    rect: Rect<f32>,
+    label: usize,
+    state: STrackState,
+    is_activated: bool,
+    score: f32,
+    track_id: usize,
+    frame_id: usize,
+    start_frame_id: usize,
+    tracklet_len: usize,
 }
 
 impl STrack {
-    pub fn new(rect: Rect<f32>, score: f32) -> Self {
+    pub(crate) fn new(rect: Rect<f32>, score: f32, label: usize) -> Self {
         let kalman_filter = KalmanFilter::new(1.0 / 20., 1.0 / 160.);
         let mean = StateMean::zeros();
         let covariance = StateCov::zeros();
@@ -54,6 +55,7 @@ impl STrack {
             mean,
             covariance,
             rect,
+            label,
             state: STrackState::New,
             is_activated: false,
             score,
@@ -75,6 +77,7 @@ impl STrack {
             mean,
             covariance,
             rect: Rect::new(0.0, 0.0, 0.0, 0.0),
+            label: 0,
             state: STrackState::New,
             is_activated: false,
             score: 0.0,
@@ -85,36 +88,39 @@ impl STrack {
         }
     }
 
-    pub fn get_rect(&self) -> Rect<f32> {
+    #[inline(always)]
+    pub(crate) fn get_rect(&self) -> Rect<f32> {
         return self.rect.clone();
     }
 
-    pub fn get_strack_state(&self) -> STrackState {
+    #[inline(always)]
+    pub(crate) fn get_strack_state(&self) -> STrackState {
         return self.state;
     }
 
-    pub fn is_activated(&self) -> bool {
+    #[inline(always)]
+    pub(crate) fn is_activated(&self) -> bool {
         return self.is_activated;
     }
 
-    pub fn get_score(&self) -> f32 {
+    #[inline(always)]
+    pub(crate) fn get_score(&self) -> f32 {
         return self.score;
     }
 
-    pub fn get_track_id(&self) -> usize {
+    #[inline(always)]
+    pub(crate) fn get_track_id(&self) -> usize {
         return self.track_id;
     }
 
-    pub fn get_frame_id(&self) -> usize {
+    #[inline(always)]
+    pub(crate) fn get_frame_id(&self) -> usize {
         return self.frame_id;
     }
 
-    pub fn get_start_frame_id(&self) -> usize {
+    #[inline(always)]
+    pub(crate) fn get_start_frame_id(&self) -> usize {
         return self.start_frame_id;
-    }
-
-    pub fn get_tracklet_length(&self) -> usize {
-        return self.tracklet_len;
     }
 
     pub(crate) fn activate(&mut self, frame_id: usize, track_id: usize) {
@@ -194,10 +200,10 @@ impl STrack {
     }
 
     pub(crate) fn update_rect(&mut self) {
-        self.rect.tlwh[(0, 2)] = self.mean[(0, 2)] * self.mean[(0, 3)];
-        self.rect.tlwh[(0, 3)] = self.mean[(0, 3)];
-        self.rect.tlwh[(0, 0)] = self.mean[(0, 0)] - self.rect.width() / 2.;
-        self.rect.tlwh[(0, 1)] = self.mean[(0, 1)] - self.rect.height() / 2.;
+        self.rect.set_width(self.mean[(0, 2)] * self.mean[(0, 3)]);
+        self.rect.set_height(self.mean[(0, 3)]);
+        self.rect.set_x(self.mean[(0, 0)] - self.rect.width() / 2.);
+        self.rect.set_y(self.mean[(0, 1)] - self.rect.height() / 2.);
     }
 }
 
