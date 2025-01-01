@@ -62,7 +62,8 @@ impl ByteTracker {
         let mut det_low_stracks = Vec::new();
 
         for obj in objects {
-            let strack = STrack::new(obj.get_rect(), obj.get_prob());
+            let strack =
+                STrack::new(obj.get_rect(), obj.get_prob(), obj.get_label());
             if obj.get_prob() >= self.track_thresh {
                 det_stracks.push(strack);
             } else {

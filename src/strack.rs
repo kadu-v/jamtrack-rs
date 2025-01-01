@@ -35,6 +35,7 @@ pub(crate) struct STrack {
     mean: StateMean,
     covariance: StateCov,
     rect: Rect<f32>,
+    label: usize,
     state: STrackState,
     is_activated: bool,
     score: f32,
@@ -45,7 +46,7 @@ pub(crate) struct STrack {
 }
 
 impl STrack {
-    pub(crate) fn new(rect: Rect<f32>, score: f32) -> Self {
+    pub(crate) fn new(rect: Rect<f32>, score: f32, label: usize) -> Self {
         let kalman_filter = KalmanFilter::new(1.0 / 20., 1.0 / 160.);
         let mean = StateMean::zeros();
         let covariance = StateCov::zeros();
@@ -54,6 +55,7 @@ impl STrack {
             mean,
             covariance,
             rect,
+            label,
             state: STrackState::New,
             is_activated: false,
             score,
@@ -75,6 +77,7 @@ impl STrack {
             mean,
             covariance,
             rect: Rect::new(0.0, 0.0, 0.0, 0.0),
+            label: 0,
             state: STrackState::New,
             is_activated: false,
             score: 0.0,
