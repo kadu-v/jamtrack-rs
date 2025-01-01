@@ -32,16 +32,16 @@ impl Debug for STrack {
 #[derive(Clone)]
 pub struct STrack {
     kalman_filter: KalmanFilter,
-    pub mean: StateMean,
-    pub covariance: StateCov,
-    pub rect: Rect<f32>,
-    pub state: STrackState,
-    pub is_activated: bool,
-    pub score: f32,
-    pub track_id: usize,
-    pub frame_id: usize,
-    pub start_frame_id: usize,
-    pub tracklet_len: usize,
+    mean: StateMean,
+    covariance: StateCov,
+    rect: Rect<f32>,
+    state: STrackState,
+    is_activated: bool,
+    score: f32,
+    track_id: usize,
+    frame_id: usize,
+    start_frame_id: usize,
+    tracklet_len: usize,
 }
 
 impl STrack {
@@ -85,34 +85,42 @@ impl STrack {
         }
     }
 
+    #[inline(always)]
     pub fn get_rect(&self) -> Rect<f32> {
         return self.rect.clone();
     }
 
+    #[inline(always)]
     pub fn get_strack_state(&self) -> STrackState {
         return self.state;
     }
 
+    #[inline(always)]
     pub fn is_activated(&self) -> bool {
         return self.is_activated;
     }
 
+    #[inline(always)]
     pub fn get_score(&self) -> f32 {
         return self.score;
     }
 
+    #[inline(always)]
     pub fn get_track_id(&self) -> usize {
         return self.track_id;
     }
 
+    #[inline(always)]
     pub fn get_frame_id(&self) -> usize {
         return self.frame_id;
     }
 
+    #[inline(always)]
     pub fn get_start_frame_id(&self) -> usize {
         return self.start_frame_id;
     }
 
+    #[inline(always)]
     pub fn get_tracklet_length(&self) -> usize {
         return self.tracklet_len;
     }
@@ -194,10 +202,10 @@ impl STrack {
     }
 
     pub(crate) fn update_rect(&mut self) {
-        self.rect.tlwh[(0, 2)] = self.mean[(0, 2)] * self.mean[(0, 3)];
-        self.rect.tlwh[(0, 3)] = self.mean[(0, 3)];
-        self.rect.tlwh[(0, 0)] = self.mean[(0, 0)] - self.rect.width() / 2.;
-        self.rect.tlwh[(0, 1)] = self.mean[(0, 1)] - self.rect.height() / 2.;
+        self.rect.set_width(self.mean[(0, 2)] * self.mean[(0, 3)]);
+        self.rect.set_height(self.mean[(0, 3)]);
+        self.rect.set_x(self.mean[(0, 0)] - self.rect.width() / 2.);
+        self.rect.set_y(self.mean[(0, 1)] - self.rect.height() / 2.);
     }
 }
 

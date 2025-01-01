@@ -52,7 +52,7 @@ impl ByteTracker {
     pub fn update(
         &mut self,
         objects: &Vec<Object>,
-    ) -> Result<Vec<STrack>, ByteTrackError> {
+    ) -> Result<Vec<Object>, ByteTrackError> {
         self.frame_id += 1;
 
         /*------------------ Step 1: Get detections -------------------------*/
@@ -62,8 +62,8 @@ impl ByteTracker {
         let mut det_low_stracks = Vec::new();
 
         for obj in objects {
-            let strack = STrack::new(obj.rect.clone(), obj.prob);
-            if obj.prob >= self.track_thresh {
+            let strack = STrack::new(obj.get_rect(), obj.get_prob());
+            if obj.get_prob() >= self.track_thresh {
                 det_stracks.push(strack);
             } else {
                 det_low_stracks.push(strack);
@@ -260,7 +260,7 @@ impl ByteTracker {
         let mut output_stracks = Vec::new();
         for track in self.tracked_stracks.iter() {
             if track.is_activated() {
-                output_stracks.push(track.clone());
+                output_stracks.push(track.into());
             }
         }
 

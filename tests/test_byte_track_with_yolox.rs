@@ -118,6 +118,7 @@ impl Into<jamtrack_rs::object::Object> for DetectionReuslt {
             ),
             0,
             self.prob,
+            None,
         )
     }
 }
@@ -196,6 +197,7 @@ impl Into<jamtrack_rs::object::Object> for TrackingResult {
             ),
             self.track_id,
             0.0,
+            None,
         )
     }
 }
@@ -251,7 +253,7 @@ fn test_byte_track_with_yolox() {
             assert!(
                 outputs
                     .iter()
-                    .any(|output| output.get_track_id() == *track_id),
+                    .any(|output| output.get_track_id().unwrap() == *track_id),
                 "Not found expected track_id: {} in frame_id: {}, outputs: {:?}",
                 track_id,
                 frame_id,
@@ -266,16 +268,16 @@ fn test_byte_track_with_yolox() {
             let expected_rect = {
                 let obj: jamtrack_rs::object::Object = <TrackingResult>::into(
                     expected_outputs
-                        .get(&output.get_track_id())
+                        .get(&output.get_track_id().unwrap())
                         .unwrap()
                         .clone(),
                 );
-                obj.rect
+                obj.get_rect()
             };
             assert!(
-                expected_outputs.contains_key(&output.get_track_id()),
+                expected_outputs.contains_key(&output.get_track_id().unwrap()),
                 "Not found output track_id: {} in frame_id: {}",
-                output.get_track_id(),
+                output.get_track_id().unwrap(),
                 frame_id,
             );
             assert_nearly_eq!(rect.x(), expected_rect.x(), EPS);
