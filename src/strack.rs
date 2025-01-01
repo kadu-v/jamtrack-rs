@@ -99,6 +99,11 @@ impl STrack {
     }
 
     #[inline(always)]
+    pub(crate) fn get_label(&self) -> usize {
+        return self.label;
+    }
+
+    #[inline(always)]
     pub(crate) fn is_activated(&self) -> bool {
         return self.is_activated;
     }
