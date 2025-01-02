@@ -9,21 +9,14 @@ use std::fmt::Debug;
 #[derive(Debug, Clone)]
 pub struct Object {
     rect: Rect<f32>,
-    label: usize,
     prob: f32,
     track_id: Option<usize>,
 }
 
 impl Object {
-    pub fn new(
-        rect: Rect<f32>,
-        label: usize,
-        prob: f32,
-        track_id: Option<usize>,
-    ) -> Self {
+    pub fn new(rect: Rect<f32>, prob: f32, track_id: Option<usize>) -> Self {
         Self {
             rect,
-            label,
             prob,
             track_id,
         }
@@ -55,11 +48,6 @@ impl Object {
     }
 
     #[inline(always)]
-    pub fn get_label(&self) -> usize {
-        self.label
-    }
-
-    #[inline(always)]
     pub fn get_prob(&self) -> f32 {
         self.prob
     }
@@ -74,7 +62,6 @@ impl From<STrack> for Object {
     fn from(strack: STrack) -> Self {
         Object::new(
             strack.get_rect(),
-            strack.get_label(),
             strack.get_score(),
             Some(strack.get_track_id()),
         )
@@ -85,7 +72,6 @@ impl From<&STrack> for Object {
     fn from(strack: &STrack) -> Self {
         Object::new(
             strack.get_rect(),
-            strack.get_label(),
             strack.get_score(),
             Some(strack.get_track_id()),
         )

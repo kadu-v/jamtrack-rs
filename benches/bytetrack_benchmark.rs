@@ -39,7 +39,7 @@ impl From<DetectionResultJson> for Object {
         let height = detection_result.height.parse::<f32>().unwrap();
         let prob = detection_result.prob.parse::<f32>().unwrap();
         let rect = Rect::new(x, y, width, height);
-        Object::new(rect, 0, prob, None)
+        Object::new(rect, prob, None)
     }
 }
 

@@ -116,7 +116,6 @@ impl Into<jamtrack_rs::object::Object> for DetectionReuslt {
                 self.width,
                 self.height,
             ),
-            0,
             self.prob,
             None,
         )
@@ -195,7 +194,6 @@ impl Into<jamtrack_rs::object::Object> for TrackingResult {
                 self.width,
                 self.height,
             ),
-            self.track_id,
             0.0,
             None,
         )
