@@ -243,19 +243,19 @@ fn test_exec_lapjv_8x10() {
     assert_eq!(colsol, vec![1, -1, 2, 5, -1, 6, 0, 3, 7, 4]);
 }
 
-fn gen_cost_matrix(n: usize, m: usize, gen: &mut Gen) -> Vec<Vec<f32>> {
+fn gen_cost_matrix(n: usize, m: usize, g: &mut Gen) -> Vec<Vec<f32>> {
     let mut cost = vec![];
     for _ in 0..n {
-        let row = vec![f32::arbitrary(gen); m];
+        let row = vec![f32::arbitrary(g); m];
         cost.push(row);
     }
     cost
 }
 
-fn gen_vec_isize(n: usize, gen: &mut Gen) -> Vec<isize> {
+fn gen_vec_isize(n: usize, g: &mut Gen) -> Vec<isize> {
     let mut vec = vec![];
     for _ in 0..n {
-        vec.push(isize::arbitrary(gen));
+        vec.push(isize::arbitrary(g));
     }
     vec
 }
@@ -266,9 +266,9 @@ fn test_quickcheck_exec_lapjv() {
         let mut rng = rand::thread_rng();
         let n = rng.gen_range(1..=100);
         let m = rng.gen_range(1..=100);
-        let cost = gen_cost_matrix(n, m, &mut Gen::new(rng.gen()));
-        let mut rowsol = gen_vec_isize(n, &mut Gen::new(rng.gen()));
-        let mut colsol = gen_vec_isize(m, &mut Gen::new(rng.gen()));
+        let cost = gen_cost_matrix(n, m, &mut Gen::new(rng.r#gen()));
+        let mut rowsol = gen_vec_isize(n, &mut Gen::new(rng.r#gen()));
+        let mut colsol = gen_vec_isize(m, &mut Gen::new(rng.r#gen()));
         let opt = ByteTracker::exec_lapjv(
             &cost,
             &mut rowsol,
