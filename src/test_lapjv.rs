@@ -155,19 +155,19 @@ fn test_lapjv_10x10_2() {
     assert_eq!(y, vec![1, 2, 6, 5, 8, 0, 9, 3, 7, 4]);
 }
 
-fn gen_cost_matrix(n: usize, gen: &mut Gen) -> Vec<Vec<f64>> {
+fn gen_cost_matrix(n: usize, g: &mut Gen) -> Vec<Vec<f64>> {
     let mut cost = vec![];
     for _ in 0..n {
-        let row = vec![f64::arbitrary(gen); n];
+        let row = vec![f64::arbitrary(g); n];
         cost.push(row);
     }
     cost
 }
 
-fn gen_vec_isize(n: usize, gen: &mut Gen) -> Vec<isize> {
+fn gen_vec_isize(n: usize, g: &mut Gen) -> Vec<isize> {
     let mut vec = vec![];
     for _ in 0..n {
-        vec.push(isize::arbitrary(gen));
+        vec.push(isize::arbitrary(g));
     }
     vec
 }
@@ -177,9 +177,9 @@ fn test_quickcheck_lapjv() {
     fn prop(_: usize) -> bool {
         let mut rng = rand::thread_rng();
         let n = rng.gen_range(1..=100);
-        let mut cost = gen_cost_matrix(n, &mut Gen::new(rng.gen()));
-        let mut x = gen_vec_isize(n, &mut Gen::new(rng.gen()));
-        let mut y = gen_vec_isize(n, &mut Gen::new(rng.gen()));
+        let mut cost = gen_cost_matrix(n, &mut Gen::new(rng.r#gen()));
+        let mut x = gen_vec_isize(n, &mut Gen::new(rng.r#gen()));
+        let mut y = gen_vec_isize(n, &mut Gen::new(rng.r#gen()));
         let result = crate::lapjv::lapjv(&mut cost, &mut x, &mut y);
         result.is_ok()
     }
