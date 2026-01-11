@@ -21,5 +21,5 @@ The video uses [NHKクリエイティブ・ライブラリー](https://www2.nhk.
 1. Add the following to your `Cargo.toml`:
     ```toml
     [dependencies]
-    jamtrack-rs = { git = "git@github.com:kadu-v/jamtrack-rs.git", version = "0.1.0" }
+    jamtrack-rs = { git = "https://github.com/kadu-v/jamtrack-rs.git", version = "0.1.0" }
     ```
