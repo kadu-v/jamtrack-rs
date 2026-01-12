@@ -8,7 +8,7 @@ from typing import Optional
 import cv2
 import numpy as np
 
-from byte_track import BYTETracker
+from boost_track import BoostTracker
 
 FRAME_RE = re.compile(r"frame_(\d+)", re.IGNORECASE)
 
@@ -82,7 +82,7 @@ def draw_track(frame: np.ndarray, x1: int, y1: int, x2: int, y2: int, track_id: 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Render tracking results to a video."
+        description="Render BoostTrack results to a video."
     )
     parser.add_argument(
         "--frames-dir",
@@ -99,24 +99,26 @@ def main() -> None:
     parser.add_argument(
         "--output-video",
         type=Path,
-        default=Path("data/video/tracking_from_onnx.mp4"),
+        default=Path("data/video/boosttrack_from_onnx.mp4"),
         help="Output video path (mp4).",
     )
     parser.add_argument("--fps", type=float, default=30.0)
-    parser.add_argument("--track-buffer", type=int, default=30)
-    parser.add_argument("--track-thresh", type=float, default=0.45)
-    parser.add_argument("--match-thresh", type=float, default=0.8)
+    parser.add_argument("--det-thresh", type=float, default=None)
+    parser.add_argument("--iou-thresh", type=float, default=None)
+    parser.add_argument("--min-hits", type=int, default=None)
+    parser.add_argument("--max-age", type=int, default=None)
     args = parser.parse_args()
 
     frame_paths = sorted(args.frames_dir.glob("*.jpg"))
     if not frame_paths:
         raise SystemExit(f"No frames found in: {args.frames_dir}")
 
-    tracker = BYTETracker(
-        track_thresh=args.track_thresh,
-        track_buffer=args.track_buffer,
-        match_thresh=args.match_thresh,
-        frame_rate=args.fps,
+    tracker = BoostTracker(
+        frame_rate=int(args.fps),
+        det_thresh=args.det_thresh,
+        iou_threshold=args.iou_thresh,
+        min_hits=args.min_hits,
+        max_age=args.max_age,
     )
 
     first_frame = cv2.imread(str(frame_paths[0]))
@@ -143,7 +145,7 @@ def main() -> None:
 
         det_path = args.outputs_dir / f"{frame_path.stem}.json"
         dets = load_detections(det_path)
-        tracks = tracker.update(dets)
+        tracks = tracker.update(dets, frame, tag=frame_path.stem)
         if tracks.size == 0:
             writer.write(frame)
             continue
@@ -159,6 +161,7 @@ def main() -> None:
         writer.write(frame)
 
     writer.release()
+    tracker.dump_cache()
     print(f"Saved video to: {args.output_video}")
 
 
