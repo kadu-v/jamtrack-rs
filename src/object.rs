@@ -1,5 +1,5 @@
-use crate::rect::Rect;
-use crate::strack::STrack;
+use super::rect::Rect;
+use super::strack::STrack;
 use std::fmt::Debug;
 
 /* ------------------------------------------------------------------------------

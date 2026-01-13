@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 #[derive(Debug, Clone, Error)]
-pub enum ByteTrackError {
+pub enum TrackError {
     #[error("Error: {0}")]
     LapjvError(String),
     #[error("Error: {0}")]
