@@ -5,9 +5,7 @@ use std::fmt::Debug;
 /* ------------------------------------------------------------------------------
  * Type aliases
  * ------------------------------------------------------------------------------ */
-// type Tlwh<T> = Matrix1x4<T>;
-
-type Xyah<T> = Matrix1x4<T>;
+pub type Xyah<T> = Matrix1x4<T>;
 
 /* ------------------------------------------------------------------------------
  * Rect struct
@@ -36,7 +34,7 @@ where
     }
 
     #[inline(always)]
-    pub(crate) fn set_x(&mut self, x: T) {
+    pub fn set_x(&mut self, x: T) {
         self.tlwh[(0, 0)] = x;
     }
 
@@ -46,7 +44,7 @@ where
     }
 
     #[inline(always)]
-    pub(crate) fn set_y(&mut self, y: T) {
+    pub fn set_y(&mut self, y: T) {
         self.tlwh[(0, 1)] = y;
     }
 
@@ -56,7 +54,7 @@ where
     }
 
     #[inline(always)]
-    pub(crate) fn set_width(&mut self, width: T) {
+    pub fn set_width(&mut self, width: T) {
         self.tlwh[(0, 2)] = width;
     }
 
@@ -66,7 +64,7 @@ where
     }
 
     #[inline(always)]
-    pub(crate) fn set_height(&mut self, height: T) {
+    pub fn set_height(&mut self, height: T) {
         self.tlwh[(0, 3)] = height;
     }
 
@@ -75,7 +73,7 @@ where
             * (self.tlwh[(0, 3)] + T::from(1).unwrap())
     }
 
-    pub(crate) fn calc_iou(&self, other: &Rect<T>) -> T {
+    pub fn calc_iou(&self, other: &Rect<T>) -> T {
         let box_area = other.area();
         let iw = (self.tlwh[(0, 0)] + self.tlwh[(0, 2)])
             .min(other.tlwh[(0, 0)] + other.tlwh[(0, 2)])
@@ -100,12 +98,38 @@ where
         iou
     }
 
-    pub(crate) fn get_xyah(&self) -> Xyah<T> {
+    pub fn get_xyah(&self) -> Xyah<T> {
         Matrix1x4::new(
             self.tlwh[(0, 0)] + self.tlwh[(0, 2)] / T::from(2).unwrap(),
             self.tlwh[(0, 1)] + self.tlwh[(0, 3)] / T::from(2).unwrap(),
             self.tlwh[(0, 2)] / self.tlwh[(0, 3)],
             self.tlwh[(0, 3)],
+        )
+    }
+
+    /// Get bounding box as [x1, y1, x2, y2] format
+    pub fn get_xyxy(&self) -> [T; 4] {
+        [
+            self.tlwh[(0, 0)],
+            self.tlwh[(0, 1)],
+            self.tlwh[(0, 0)] + self.tlwh[(0, 2)],
+            self.tlwh[(0, 1)] + self.tlwh[(0, 3)],
+        ]
+    }
+
+    /// Create Rect from [x1, y1, x2, y2] format
+    pub fn from_xyxy(x1: T, y1: T, x2: T, y2: T) -> Self {
+        Self::new(x1, y1, x2 - x1, y2 - y1)
+    }
+
+    /// Create Rect from [x, y, h, r] format (center_x, center_y, height, aspect_ratio)
+    pub fn from_xyhr(x: T, y: T, h: T, r: T) -> Self {
+        let w = if r <= T::zero() { T::zero() } else { r * h };
+        Self::new(
+            x - w / T::from(2).unwrap(),
+            y - h / T::from(2).unwrap(),
+            w,
+            h,
         )
     }
 }

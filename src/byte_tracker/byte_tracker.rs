@@ -1,7 +1,5 @@
-use super::{
-    rect::Rect,
-    strack::{STrack, STrackState},
-};
+use super::strack::{STrack, STrackState};
+use crate::rect::Rect;
 use crate::error::TrackError;
 use crate::lapjv::lapjv;
 use crate::object::Object;

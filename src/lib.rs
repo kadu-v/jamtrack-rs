@@ -3,9 +3,10 @@ pub mod byte_tracker;
 pub mod error;
 pub mod lapjv;
 pub mod object;
+pub mod rect;
 
-pub use byte_tracker::rect;
 pub use byte_tracker::strack;
+pub use rect::Rect;
 
 use crate::error::TrackError;
 use crate::object::Object;

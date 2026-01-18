@@ -1,7 +1,5 @@
-use super::{
-    kalman_filter::{KalmanFilter, StateCov, StateMean},
-    rect::Rect,
-};
+use super::kalman_filter::{KalmanFilter, StateCov, StateMean};
+use crate::rect::Rect;
 use std::fmt::Debug;
 
 /* ----------------------------------------------------------------------------
