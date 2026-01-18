@@ -16,28 +16,35 @@ JamTrack-rs is a Rust crate that provides multi-object tracking algorithms inclu
 
 ## Demo Videos
 
+
+
+
+
 ### ByteTracker
 
 <div align="center">
-    <video controls src="https://github.com/user-attachments/assets/c471de14-f506-46cb-938a-b95025a89e2e" muted="false" width="500"></video>
+    <video controls src="https:
+
+
+//github.com/user-attachments/assets/dc135e90-4296-408e-8309-bfd921c06700" muted="false" width="500"></video>
 </div>
 
 ### BoostTracker
 
 <div align="center">
-    <video controls src="./data/video/boosttrack_basic.mp4" muted="false" width="500"></video>
+    <video controls src="https://github.com/user-attachments/assets/a3c9c252-cb32-4944-8820-fe981588b90e" muted="false" width="500"></video>
 </div>
 
 ### BoostTracker+
 
 <div align="center">
-    <video controls src="./data/video/boosttrack_plus.mp4" muted="false" width="500"></video>
+    <video controls src="https://github.com/user-attachments/assets/6e05a5ec-337c-4aa9-9202-f635acf56050" muted="false" width="500"></video>
 </div>
 
 ### BoostTracker++
 
 <div align="center">
-    <video controls src="./data/video/boosttrack_plusplus.mp4" muted="false" width="500"></video>
+    <video controls src="https://github.com/user-attachments/assets/e5c93888-b0b7-42cd-af87-b22dfbe063fe" muted="false" width="500"></video>
 </div>
 
 Videos use [NHK Creative Library](https://www2.nhk.or.jp/archives/movies/?id=D0002011239_00000) as the source with YoloX-X as the detector.
@@ -120,6 +127,41 @@ let mut custom_tracker = BoostTracker::new(0.5, 0.3, 30, 3)
     .with_boost(true, false)      // use_dlo_boost, use_duo_boost
     .with_boost_plus_plus();
 ```
+
+## Benchmark on M3 MacBook Pro
+```bash
+$ cargo bench
+     Running benches/boosttrack_benchmark.rs (target/release/deps/boosttrack_benchmark-9e3103bfc25128ab)
+Gnuplot not found, using plotters backend
+boosttrack_basic        time:   [63.316 ms 63.424 ms 63.537 ms]
+                        change: [-1.0919% -0.8370% -0.6061%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Found 1 outliers among 50 measurements (2.00%)
+  1 (2.00%) high mild
+
+boosttrack_plus         time:   [83.895 ms 84.077 ms 84.343 ms]
+                        change: [-0.9095% -0.6342% -0.2771%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Found 8 outliers among 50 measurements (16.00%)
+  5 (10.00%) high mild
+  3 (6.00%) high severe
+
+boosttrack_plusplus     time:   [77.748 ms 77.929 ms 78.179 ms]
+                        change: [-1.5845% -1.1522% -0.6850%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Found 9 outliers among 50 measurements (18.00%)
+  3 (6.00%) high mild
+  6 (12.00%) high severe
+
+     Running benches/bytetrack_benchmark.rs (target/release/deps/bytetrack_benchmark-e0432e8a054012c9)
+Gnuplot not found, using plotters backend
+bytetrack               time:   [80.770 ms 80.884 ms 81.010 ms]
+                        change: [+0.5419% +0.7601% +0.9799%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Found 6 outliers among 50 measurements (12.00%)
+  6 (12.00%) high mild
+```
+
 
 ## Examples
 
