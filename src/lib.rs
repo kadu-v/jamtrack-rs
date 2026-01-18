@@ -1,14 +1,13 @@
+pub mod boost_tracker;
 pub mod byte_tracker;
 pub mod error;
-mod kalman_filter;
-mod lapjv;
 pub mod object;
 pub mod rect;
-pub mod strack;
 
-#[cfg(test)]
-mod test_byte_tracker;
-#[cfg(test)]
-mod test_kalman_filter;
-#[cfg(test)]
-mod test_lapjv;
+mod lapjv;
+
+pub use boost_tracker::BoostTracker;
+pub use byte_tracker::ByteTracker;
+pub use error::TrackError;
+pub use object::Object;
+pub use rect::Rect;

@@ -1,9 +1,9 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use jamtrack_rs::{byte_tracker::ByteTracker, object::Object, rect::Rect};
 use serde::Deserialize;
-use serde_json;
 
 const DETECTION_JSON_PATH: &str = "data/jsons/detection_results.json";
 /* ----------------------------------------------------------------------------
@@ -72,9 +72,9 @@ fn bench_bytetrack(c: &mut Criterion) {
         .collect::<Vec<(usize, Vec<Object>)>>();
     detections.sort_by(|a, b| a.0.cmp(&b.0));
 
-    let mut tracker = ByteTracker::new(60, 60, 0.5, 0.6, 0.8);
     c.bench_function("bytetrack", |b| {
         b.iter(|| {
+            let mut tracker = ByteTracker::new(60, 60, 0.5, 0.6, 0.8);
             for (_, objs) in detections.iter() {
                 let _ = tracker.update(objs);
             }
@@ -82,5 +82,12 @@ fn bench_bytetrack(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_bytetrack);
+criterion_group! {
+    name = benches;
+    config = Criterion::default()
+        .sample_size(50)
+        .measurement_time(Duration::from_secs(10))
+        .warm_up_time(Duration::from_secs(3));
+    targets = bench_bytetrack
+}
 criterion_main!(benches);
