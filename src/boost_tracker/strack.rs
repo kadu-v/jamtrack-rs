@@ -63,6 +63,7 @@ impl KalmanBoxTracker {
     }
 
     /// Get total age of the track in frames.
+    #[cfg(test)]
     pub fn age(&self) -> usize {
         self.age
     }

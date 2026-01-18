@@ -1,5 +1,5 @@
+use super::byte_tracker::strack::STrack;
 use super::rect::Rect;
-use super::strack::STrack;
 use std::fmt::Debug;
 
 /* ------------------------------------------------------------------------------

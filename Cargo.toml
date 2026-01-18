@@ -12,6 +12,11 @@ license = "MIT"
 name = "bytetrack_benchmark"
 harness = false
 
+[[bench]]
+name = "boosttrack_benchmark"
+harness = false
+
+
 [dependencies]
 thiserror = "1.0.66"
 nalgebra = "0.33.2"

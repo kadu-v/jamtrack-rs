@@ -11,6 +11,7 @@ use std::{
 };
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct Detection {
     x1: f32,
     y1: f32,

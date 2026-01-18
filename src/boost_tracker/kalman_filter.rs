@@ -15,21 +15,6 @@ pub(crate) type StateHMean = SMatrix<f32, 1, 4>;
 pub(crate) type StateHCov = SMatrix<f32, 4, 4>;
 
 /* -----------------------------------------------------------------------------
- * Constants
- * ----------------------------------------------------------------------------- */
-pub(crate) const CHI2INV95: [f32; 9] = [
-    3.8415, 5.9915, 7.8147, 9.4877, 11.070, 12.592, 14.067, 15.507, 16.919,
-];
-
-pub(crate) fn chi2inv95(dof: usize) -> Option<f32> {
-    if (1..=CHI2INV95.len()).contains(&dof) {
-        Some(CHI2INV95[dof - 1])
-    } else {
-        None
-    }
-}
-
-/* -----------------------------------------------------------------------------
  * Covariance policy
  * ----------------------------------------------------------------------------- */
 pub(crate) trait CovariancePolicy {
@@ -71,25 +56,22 @@ impl CovariancePolicy for ConstantNoise {
  * Kalman Filter
  * ----------------------------------------------------------------------------- */
 pub(crate) struct KalmanFilter {
-    dt: f32,
     motion_mat: StateCov,
     update_mat: SMatrix<f32, 4, 8>,
     x: StateMean,
     covariance: StateCov,
     cov_policy: Box<dyn CovariancePolicy>,
-    id: i32,
 }
 
 impl KalmanFilter {
     pub(crate) fn new(z: &DetectBox) -> Self {
-        Self::with_policy(z, Box::new(ConstantNoise::default()), 1.0, -1)
+        Self::with_policy(z, Box::new(ConstantNoise::default()), 1.0)
     }
 
     pub(crate) fn with_policy(
         z: &DetectBox,
         cov_policy: Box<dyn CovariancePolicy>,
         dt: f32,
-        id: i32,
     ) -> Self {
         let mut motion_mat = StateCov::identity();
         for i in 0..4 {
@@ -108,13 +90,11 @@ impl KalmanFilter {
         let covariance = cov_policy.init_state_cov(z);
 
         Self {
-            dt,
             motion_mat,
             update_mat,
             x,
             covariance,
             cov_policy,
-            id,
         }
     }
 
@@ -166,14 +146,6 @@ impl KalmanFilter {
 
     pub(crate) fn covariance(&self) -> &StateCov {
         &self.covariance
-    }
-
-    pub(crate) fn id(&self) -> i32 {
-        self.id
-    }
-
-    pub(crate) fn dt(&self) -> f32 {
-        self.dt
     }
 }
 
