@@ -23,10 +23,7 @@ JamTrack-rs is a Rust crate that provides multi-object tracking algorithms inclu
 ### ByteTracker
 
 <div align="center">
-    <video controls src="https:
-
-
-//github.com/user-attachments/assets/dc135e90-4296-408e-8309-bfd921c06700" muted="false" width="500"></video>
+    <video controls src="https://github.com/user-attachments/assets/dc135e90-4296-408e-8309-bfd921c06700" muted="false" width="500"></video>
 </div>
 
 ### BoostTracker
