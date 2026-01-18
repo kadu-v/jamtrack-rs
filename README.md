@@ -125,38 +125,35 @@ let mut custom_tracker = BoostTracker::new(0.5, 0.3, 30, 3)
     .with_boost_plus_plus();
 ```
 
-## Benchmark on M3 MacBook Pro
+## Benchmark
+
+Tested on M3 MacBook Pro with 1627 frames from detection_results.json.
+
+### Performance
+
+| Tracker | Time | Relative |
+|---------|------|----------|
+| BoostTrack | **63.4 ms** | 1.00x (fastest) |
+| BoostTrack++ | 77.9 ms | 1.23x |
+| ByteTracker | 80.9 ms | 1.28x |
+| BoostTrack+ | 84.1 ms | 1.33x |
+
+### Why is BoostTrack++ faster than BoostTrack+?
+
+BoostTrack++ performs more computation per frame (soft boost + varying threshold), but maintains fewer active tracks due to better matching:
+
+| Tracker | Avg Tracks | Max Tracks |
+|---------|------------|------------|
+| BoostTrack | 32.12 | 46 |
+| BoostTrack+ | 30.94 | 45 |
+| BoostTrack++ | **28.97** | 43 |
+
+Fewer tracks = smaller similarity matrices = faster downstream computation.
+
+### Run Benchmarks
+
 ```bash
-$ cargo bench
-     Running benches/boosttrack_benchmark.rs (target/release/deps/boosttrack_benchmark-9e3103bfc25128ab)
-Gnuplot not found, using plotters backend
-boosttrack_basic        time:   [63.316 ms 63.424 ms 63.537 ms]
-                        change: [-1.0919% -0.8370% -0.6061%] (p = 0.00 < 0.05)
-                        Change within noise threshold.
-Found 1 outliers among 50 measurements (2.00%)
-  1 (2.00%) high mild
-
-boosttrack_plus         time:   [83.895 ms 84.077 ms 84.343 ms]
-                        change: [-0.9095% -0.6342% -0.2771%] (p = 0.00 < 0.05)
-                        Change within noise threshold.
-Found 8 outliers among 50 measurements (16.00%)
-  5 (10.00%) high mild
-  3 (6.00%) high severe
-
-boosttrack_plusplus     time:   [77.748 ms 77.929 ms 78.179 ms]
-                        change: [-1.5845% -1.1522% -0.6850%] (p = 0.00 < 0.05)
-                        Change within noise threshold.
-Found 9 outliers among 50 measurements (18.00%)
-  3 (6.00%) high mild
-  6 (12.00%) high severe
-
-     Running benches/bytetrack_benchmark.rs (target/release/deps/bytetrack_benchmark-e0432e8a054012c9)
-Gnuplot not found, using plotters backend
-bytetrack               time:   [80.770 ms 80.884 ms 81.010 ms]
-                        change: [+0.5419% +0.7601% +0.9799%] (p = 0.00 < 0.05)
-                        Change within noise threshold.
-Found 6 outliers among 50 measurements (12.00%)
-  6 (12.00%) high mild
+cargo bench
 ```
 
 
