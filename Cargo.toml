@@ -1,6 +1,6 @@
 [package]
 name = "jamtrack-rs"
-version = "0.2.2"
+version = "0.3.0"
 edition = "2024"
 authors = ["kadu-v (Kazuki Ikemori)"]
 description = "ByteTrack implementation in Rust"
