@@ -441,6 +441,9 @@ impl BoostTracker {
     }
 
     /// Apply DUO (Detection-Update Observation) confidence boost.
+    ///
+    /// This matches the official Python implementation which includes IoU-based NMS
+    /// to avoid boosting multiple overlapping detections.
     fn duo_confidence_boost(&self, dets: &mut [[f32; 5]]) {
         if self.trackers.is_empty() || dets.is_empty() || self.frame_count <= 1 {
             return;
@@ -454,6 +457,7 @@ impl BoostTracker {
         }
 
         let limit = 13.2767;
+        let iou_limit = 0.3;
 
         // Find minimum Mahalanobis distance for each detection
         let mut min_mh_dists = vec![f32::MAX; dets.len()];
@@ -463,11 +467,58 @@ impl BoostTracker {
             }
         }
 
-        // Boost detections that are far from all tracks AND below threshold
-        for i in 0..dets.len() {
-            if min_mh_dists[i] > limit && dets[i][4] < self.det_thresh {
-                dets[i][4] = self.det_thresh + 1e-4;
+        // Find detections that are candidates for boosting
+        // (far from all tracks AND below threshold)
+        let boost_candidates: Vec<usize> = (0..dets.len())
+            .filter(|&i| min_mh_dists[i] > limit && dets[i][4] < self.det_thresh)
+            .collect();
+
+        if boost_candidates.is_empty() {
+            return;
+        }
+
+        // Compute IoU between boost candidates
+        let boost_bboxes: Vec<[f32; 4]> = boost_candidates
+            .iter()
+            .map(|&i| det_bboxes[i])
+            .collect();
+        let bdiou = iou_batch(&boost_bboxes, &boost_bboxes);
+
+        // Apply NMS-like filtering
+        let mut remaining_boxes: Vec<usize> = Vec::new();
+
+        for (bi, &det_idx) in boost_candidates.iter().enumerate() {
+            // Find max IoU with other boost candidates (excluding self)
+            let mut max_iou = 0.0f32;
+            for bj in 0..boost_candidates.len() {
+                if bi != bj {
+                    max_iou = max_iou.max(bdiou[(bi, bj)]);
+                }
             }
+
+            if max_iou <= iou_limit {
+                // No significant overlap, include this detection
+                remaining_boxes.push(det_idx);
+            } else {
+                // Has overlap, only include if it has max confidence among overlapping
+                let mut is_max_conf = true;
+                for (bj, &other_idx) in boost_candidates.iter().enumerate() {
+                    if bi != bj && bdiou[(bi, bj)] > iou_limit {
+                        if dets[other_idx][4] > dets[det_idx][4] {
+                            is_max_conf = false;
+                            break;
+                        }
+                    }
+                }
+                if is_max_conf {
+                    remaining_boxes.push(det_idx);
+                }
+            }
+        }
+
+        // Boost only the remaining boxes
+        for det_idx in remaining_boxes {
+            dets[det_idx][4] = self.det_thresh + 1e-4;
         }
     }
 }

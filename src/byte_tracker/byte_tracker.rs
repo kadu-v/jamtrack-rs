@@ -56,6 +56,8 @@ impl ByteTracker {
         /* ------------------ Step 1: Get detections ------------------------- */
 
         // Create new STracks using the result of object detections
+        // Official ByteTrack uses fixed threshold 0.1 for low score detections
+        const LOW_THRESH: f32 = 0.1;
         let mut det_stracks = Vec::new();
         let mut det_low_stracks = Vec::new();
 
@@ -63,9 +65,11 @@ impl ByteTracker {
             let strack = STrack::new(obj.get_rect(), obj.get_prob());
             if obj.get_prob() >= self.track_thresh {
                 det_stracks.push(strack);
-            } else {
+            } else if obj.get_prob() > LOW_THRESH {
+                // Low score detections: 0.1 < score < track_thresh
                 det_low_stracks.push(strack);
             }
+            // Detections with score <= 0.1 are ignored
         }
 
         // Create lists of existing stracks
@@ -96,10 +100,12 @@ impl ByteTracker {
         {
             let iou_distance =
                 Self::calc_iou_distance(&strack_pool, &det_stracks);
+            // Apply fuse_score to adjust cost by detection confidence (like official ByteTrack)
+            let fused_distance = Self::fuse_score(&iou_distance, &det_stracks);
 
             let (matches_idx, unmatched_track_idx, unmatched_detection_idx) =
                 self.linear_assignment(
-                    &iou_distance,
+                    &fused_distance,
                     strack_pool.len(),
                     det_stracks.len(),
                     self.match_thresh,
@@ -188,10 +194,12 @@ impl ByteTracker {
                 &non_active_stracks,
                 &remain_det_stracks,
             );
+            // Apply fuse_score for unconfirmed tracks (like official ByteTrack)
+            let fused_distance = Self::fuse_score(&iou_distance, &remain_det_stracks);
 
             let (matches_idx, unmatch_unconfirmed_idx, unmatched_detection_idx) =
                 self.linear_assignment(
-                    &iou_distance,
+                    &fused_distance,
                     non_active_stracks.len(),
                     remain_det_stracks.len(),
                     0.7,
@@ -474,6 +482,30 @@ impl ByteTracker {
         }
 
         cost_matrix
+    }
+
+    /// Fuse IoU cost with detection scores (from official ByteTrack)
+    /// fuse_cost = 1 - iou_sim * det_scores
+    pub(crate) fn fuse_score(
+        cost_matrix: &Vec<Vec<f32>>,
+        detections: &Vec<STrack>,
+    ) -> Vec<Vec<f32>> {
+        if cost_matrix.is_empty() {
+            return cost_matrix.clone();
+        }
+
+        let mut fuse_cost = Vec::new();
+        for row in cost_matrix.iter() {
+            let mut fused_row = Vec::new();
+            for (j, &cost) in row.iter().enumerate() {
+                let iou_sim = 1.0 - cost;
+                let det_score = detections[j].get_score();
+                let fuse_sim = iou_sim * det_score;
+                fused_row.push(1.0 - fuse_sim);
+            }
+            fuse_cost.push(fused_row);
+        }
+        fuse_cost
     }
 
     pub(crate) fn exec_lapjv(
