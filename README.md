@@ -156,6 +156,29 @@ Fewer tracks = smaller similarity matrices = faster downstream computation.
 cargo bench
 ```
 
+### MOT17-train Benchmark (YOLOX-X Detector)
+
+Evaluation results on MOT17 train set using YOLOX-X detector:
+
+| Tracker | HOTA | MOTA | IDF1 | IDSW |
+|---------|------|------|------|------|
+| **OfficialBoostTrack++ECC (Python)** | **69.71** | 79.92 | **79.82** | **287** |
+| OfficialBoostTrackECC (Python) | 69.28 | 79.17 | 79.10 | 308 |
+| **ByteTrackerTuned (Rust)** | 68.55 | **80.95** | 78.27 | 450 |
+| OfficialByteTrackerTuned (Python) | 67.92 | 80.90 | 77.47 | 453 |
+| OfficialBoostTrack++ (Python) | 67.87 | 78.89 | 76.91 | 515 |
+| OfficialBoostTrack (Python) | 67.30 | 78.26 | 76.00 | 520 |
+| BoostTrack (Rust) | 66.18 | 78.20 | 74.27 | 539 |
+| BoostTrack++ (Rust) | 66.11 | 78.81 | 74.21 | 570 |
+| OfficialByteTracker (Python) | 59.73 | 70.31 | 69.94 | 483 |
+| ByteTracker (Rust) | 58.98 | 69.91 | 68.68 | 503 |
+
+> [!NOTE]
+> - ECC variants show significant improvement in HOTA/IDF1/IDSW due to camera motion compensation
+> - Rust BoostTrack has slightly lower HOTA/IDF1 because ECC (camera motion compensation) and Embedding (Re-ID features) are not yet implemented
+> - MOTA is determined by the core algorithm, so Rust and Python versions achieve nearly identical values
+> - *Tuned* variants use optimized hyperparameters of a tracker for MOT17 dataset
+
 
 ## Examples
 
@@ -186,6 +209,8 @@ cargo run --example example_boost_tracker_modes plusplus
 | Rich Similarity | No | No | Yes | Yes |
 | Soft Boost | No | No | No | Yes |
 | Varying Threshold | No | No | No | Yes |
+| Embedding (Re-ID) | No | No | No | No |
+| ECC (Camera Motion Compensation) | No | No | No | No |
 
 ## References
 
