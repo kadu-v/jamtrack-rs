@@ -50,7 +50,7 @@ Videos use [NHK Creative Library](https://www2.nhk.or.jp/archives/movies/?id=D00
 
 Add the following to your `Cargo.toml`:
 
-```toml
+```
 [dependencies]
 jamtrack-rs = { git = "https://github.com/kadu-v/jamtrack-rs.git" }
 ```
