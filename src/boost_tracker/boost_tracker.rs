@@ -3,11 +3,16 @@
 //! This module provides the `BoostTracker` struct that implements
 //! multi-object tracking with confidence boosting techniques.
 
-use super::assoc::{associate, iou_batch, mh_dist_similarity, shape_similarity, soft_biou_batch, AssociateParams};
-use super::strack::{convert_bbox_to_z, KalmanBoxTracker};
+use super::assoc::{
+    AssociateParams, associate, iou_batch, mh_dist_similarity,
+    shape_similarity_v1, shape_similarity_v2, soft_biou_batch,
+};
+use super::ecc::{EccAligner, EccConfig};
+use super::strack::{KalmanBoxTracker, convert_bbox_to_z};
 use crate::error::TrackError;
 use crate::object::Object;
 use crate::rect::Rect;
+use image::GrayImage;
 use nalgebra::DMatrix;
 
 /// BoostTracker - Multi-object tracker with confidence boosting
@@ -37,6 +42,7 @@ pub struct BoostTracker {
 
     // BoostTrack+ settings
     use_rich_similarity: bool,
+    use_shape_similarity_correction: bool,
 
     // BoostTrack++ settings
     use_soft_boost: bool,
@@ -46,6 +52,8 @@ pub struct BoostTracker {
     frame_count: usize,
     track_id_count: usize,
     trackers: Vec<KalmanBoxTracker>,
+    use_ecc: bool,
+    ecc: Option<EccAligner>,
 }
 
 impl BoostTracker {
@@ -80,11 +88,14 @@ impl BoostTracker {
             use_duo_boost: true,
             dlo_boost_coef: 0.65,
             use_rich_similarity: false,
+            use_shape_similarity_correction: true,
             use_soft_boost: false,
             use_varying_threshold: false,
             frame_count: 0,
             track_id_count: 0,
             trackers: Vec::new(),
+            use_ecc: false,
+            ecc: None,
         }
     }
 
@@ -158,6 +169,43 @@ impl BoostTracker {
         }
     }
 
+    /// Use the original BoostTrack shape similarity formula (v1).
+    ///
+    /// This matches Python default behavior when `s_sim_corr=False`.
+    pub fn with_shape_similarity_v1(self) -> Self {
+        Self {
+            use_shape_similarity_correction: false,
+            ..self
+        }
+    }
+
+    /// Enable camera motion compensation using pure Rust ECC.
+    ///
+    /// This turns on frame-to-frame alignment and applies the estimated
+    /// camera transform to tracker states before prediction/association.
+    ///
+    /// To use ECC compensation, call [`BoostTracker::update_with_frame`]
+    /// instead of [`BoostTracker::update`].
+    ///
+    /// # Example
+    /// ```rust
+    /// use jamtrack_rs::boost_tracker::BoostTracker;
+    ///
+    /// let tracker = BoostTracker::new(0.5, 0.3, 30, 3).with_ecc();
+    /// assert_eq!(tracker.frame_count(), 0);
+    /// ```
+    pub fn with_ecc(self) -> Self {
+        self.with_ecc_config(EccConfig::default())
+    }
+
+    pub(crate) fn with_ecc_config(self, cfg: EccConfig) -> Self {
+        Self {
+            use_ecc: true,
+            ecc: Some(EccAligner::new(cfg)),
+            ..self
+        }
+    }
+
     /// Update tracker with new detections.
     ///
     /// # Arguments
@@ -165,8 +213,56 @@ impl BoostTracker {
     ///
     /// # Returns
     /// Vector of tracked objects that meet the min_hits criterion
-    pub fn update(&mut self, objects: &Vec<Object>) -> Result<Vec<Object>, TrackError> {
+    pub fn update(
+        &mut self,
+        objects: &[Object],
+    ) -> Result<Vec<Object>, TrackError> {
+        self.update_impl(objects, None)
+    }
+
+    /// Update tracker with detections and a grayscale frame.
+    ///
+    /// This is the ECC-enabled variant of [`BoostTracker::update`].
+    /// When ECC is enabled via [`BoostTracker::with_ecc`], the provided
+    /// frame is used for camera-motion compensation.
+    ///
+    /// # Example
+    /// ```rust
+    /// use image::{GrayImage, Luma};
+    /// use jamtrack_rs::{boost_tracker::BoostTracker, object::Object, rect::Rect};
+    ///
+    /// let mut tracker = BoostTracker::new(0.5, 0.3, 30, 1).with_ecc();
+    /// let frame = GrayImage::from_pixel(64, 48, Luma([127u8]));
+    /// let detections = vec![Object::new(Rect::new(10.0, 10.0, 20.0, 30.0), 0.9, None)];
+    ///
+    /// let tracked = tracker.update_with_frame(&detections, &frame).unwrap();
+    /// assert!(!tracked.is_empty());
+    /// ```
+    pub fn update_with_frame(
+        &mut self,
+        objects: &[Object],
+        frame: &GrayImage,
+    ) -> Result<Vec<Object>, TrackError> {
+        self.update_impl(objects, Some(frame))
+    }
+
+    fn update_impl(
+        &mut self,
+        objects: &[Object],
+        frame: Option<&GrayImage>,
+    ) -> Result<Vec<Object>, TrackError> {
         self.frame_count += 1;
+
+        if self.use_ecc {
+            if let (Some(frame), Some(ecc)) = (frame, self.ecc.as_mut()) {
+                let width = frame.width() as usize;
+                let height = frame.height() as usize;
+                let transform = ecc.estimate(frame.as_raw(), width, height);
+                for trk in self.trackers.iter_mut() {
+                    trk.camera_update(&transform);
+                }
+            }
+        }
 
         // Convert objects to mutable detection array [x1, y1, x2, y2, score]
         let mut dets: Vec<[f32; 5]> = objects
@@ -205,7 +301,8 @@ impl BoostTracker {
             .map(|(i, _)| i)
             .collect();
 
-        let filtered_dets: Vec<[f32; 5]> = remain_inds.iter().map(|&i| dets[i]).collect();
+        let filtered_dets: Vec<[f32; 5]> =
+            remain_inds.iter().map(|&i| dets[i]).collect();
         let det_bboxes: Vec<[f32; 4]> = filtered_dets
             .iter()
             .map(|d| [d[0], d[1], d[2], d[3]])
@@ -221,6 +318,8 @@ impl BoostTracker {
             lambda_iou: self.lambda_iou,
             lambda_mhd: self.lambda_mhd,
             lambda_shape: self.lambda_shape,
+            use_shape_similarity_correction: self
+                .use_shape_similarity_correction,
         };
 
         let mh_dist_opt = if mh_dist.nrows() > 0 && mh_dist.ncols() > 0 {
@@ -252,8 +351,10 @@ impl BoostTracker {
         for &det_idx in &result.unmatched_detections {
             if det_scores[det_idx] >= self.det_thresh {
                 self.track_id_count += 1;
-                let new_tracker =
-                    KalmanBoxTracker::new(&det_bboxes[det_idx], self.track_id_count);
+                let new_tracker = KalmanBoxTracker::new(
+                    &det_bboxes[det_idx],
+                    self.track_id_count,
+                );
                 self.trackers.push(new_tracker);
             }
         }
@@ -266,11 +367,17 @@ impl BoostTracker {
 
             // Output if recently updated and has enough hits
             if tracker.time_since_update() < 1
-                && (tracker.hit_streak() >= self.min_hits || self.frame_count <= self.min_hits)
+                && (tracker.hit_streak() >= self.min_hits
+                    || self.frame_count <= self.min_hits)
             {
                 // state is [x1, y1, x2, y2] format
-                let rect = Rect::from_xyxy(state[0], state[1], state[2], state[3]);
-                let obj = Object::new(rect, tracker.get_confidence(0.9), Some(tracker.id()));
+                let rect =
+                    Rect::from_xyxy(state[0], state[1], state[2], state[3]);
+                let obj = Object::new(
+                    rect,
+                    tracker.get_confidence(0.9),
+                    Some(tracker.id()),
+                );
                 output.push(obj);
             }
         }
@@ -355,12 +462,18 @@ impl BoostTracker {
     /// - BoostTrack: Uses soft BIoU with simple coefficient
     /// - BoostTrack+: Uses rich similarity (MhDist + shape + soft BIoU)
     /// - BoostTrack++: Adds soft boost and varying threshold
-    fn dlo_confidence_boost(&self, dets: &mut [[f32; 5]], trks: &[[f32; 4]], confs: &[f32]) {
+    fn dlo_confidence_boost(
+        &self,
+        dets: &mut [[f32; 5]],
+        trks: &[[f32; 4]],
+        confs: &[f32],
+    ) {
         if trks.is_empty() || dets.is_empty() {
             return;
         }
 
-        let det_bboxes: Vec<[f32; 4]> = dets.iter().map(|d| [d[0], d[1], d[2], d[3]]).collect();
+        let det_bboxes: Vec<[f32; 4]> =
+            dets.iter().map(|d| [d[0], d[1], d[2], d[3]]).collect();
 
         // Compute similarity matrix
         let similarity = if self.use_rich_similarity {
@@ -368,13 +481,19 @@ impl BoostTracker {
             let sbiou = soft_biou_batch(&det_bboxes, trks, confs);
             let mh_dist = self.get_mh_dist_matrix(&det_bboxes);
             let mhd_sim = mh_dist_similarity(&mh_dist, 1.0);
-            let shape_sim = shape_similarity(&det_bboxes, trks);
+            let shape_sim = if self.use_shape_similarity_correction {
+                shape_similarity_v2(&det_bboxes, trks)
+            } else {
+                shape_similarity_v1(&det_bboxes, trks)
+            };
 
             // S = (mhd_sim + shape_sim + sbiou) / 3
             let mut s = DMatrix::zeros(dets.len(), trks.len());
             for i in 0..dets.len() {
                 for j in 0..trks.len() {
-                    s[(i, j)] = (mhd_sim[(i, j)] + shape_sim[(i, j)] + sbiou[(i, j)]) / 3.0;
+                    s[(i, j)] =
+                        (mhd_sim[(i, j)] + shape_sim[(i, j)] + sbiou[(i, j)])
+                            / 3.0;
                 }
             }
             s
@@ -384,10 +503,10 @@ impl BoostTracker {
         };
 
         // Get time_since_update for varying threshold
-        let time_since_updates: Vec<usize> = self
+        let time_since_updates: Vec<f32> = self
             .trackers
             .iter()
-            .map(|t| t.time_since_update())
+            .map(|t| t.time_since_update().saturating_sub(1) as f32)
             .collect();
 
         // Apply boost based on mode
@@ -410,7 +529,8 @@ impl BoostTracker {
                     for j in 0..trks.len() {
                         max_s = max_s.max(similarity[(i, j)]);
                     }
-                    let boosted = alpha * dets[i][4] + (1.0 - alpha) * max_s.powf(1.5);
+                    let boosted =
+                        alpha * dets[i][4] + (1.0 - alpha) * max_s.powf(1.5);
                     dets[i][4] = dets[i][4].max(boosted);
                 }
             }
@@ -425,8 +545,9 @@ impl BoostTracker {
                 for i in 0..dets.len() {
                     let mut should_boost = false;
                     for j in 0..trks.len() {
-                        let tsu = time_since_updates[j] as f32;
-                        let threshold = (threshold_s - tsu * alpha_vt).max(threshold_e);
+                        let tsu = time_since_updates[j];
+                        let threshold =
+                            (threshold_s - tsu * alpha_vt).max(threshold_e);
                         if similarity[(i, j)] > threshold {
                             should_boost = true;
                             break;
@@ -445,11 +566,13 @@ impl BoostTracker {
     /// This matches the official Python implementation which includes IoU-based NMS
     /// to avoid boosting multiple overlapping detections.
     fn duo_confidence_boost(&self, dets: &mut [[f32; 5]]) {
-        if self.trackers.is_empty() || dets.is_empty() || self.frame_count <= 1 {
+        if self.trackers.is_empty() || dets.is_empty() || self.frame_count <= 1
+        {
             return;
         }
 
-        let det_bboxes: Vec<[f32; 4]> = dets.iter().map(|d| [d[0], d[1], d[2], d[3]]).collect();
+        let det_bboxes: Vec<[f32; 4]> =
+            dets.iter().map(|d| [d[0], d[1], d[2], d[3]]).collect();
         let mh_dist = self.get_mh_dist_matrix(&det_bboxes);
 
         if mh_dist.nrows() == 0 || mh_dist.ncols() == 0 {
@@ -470,7 +593,9 @@ impl BoostTracker {
         // Find detections that are candidates for boosting
         // (far from all tracks AND below threshold)
         let boost_candidates: Vec<usize> = (0..dets.len())
-            .filter(|&i| min_mh_dists[i] > limit && dets[i][4] < self.det_thresh)
+            .filter(|&i| {
+                min_mh_dists[i] > limit && dets[i][4] < self.det_thresh
+            })
             .collect();
 
         if boost_candidates.is_empty() {
@@ -478,47 +603,78 @@ impl BoostTracker {
         }
 
         // Compute IoU between boost candidates
-        let boost_bboxes: Vec<[f32; 4]> = boost_candidates
+        let boost_bboxes: Vec<[f32; 4]> =
+            boost_candidates.iter().map(|&i| det_bboxes[i]).collect();
+        let mut bdiou = iou_batch(&boost_bboxes, &boost_bboxes);
+        for i in 0..boost_candidates.len() {
+            bdiou[(i, i)] -= 1.0;
+        }
+
+        // Match Python implementation exactly:
+        // remaining = boost_args[bdiou_max <= iou_limit]
+        let mut bdiou_max = vec![0.0f32; boost_candidates.len()];
+        for i in 0..boost_candidates.len() {
+            let mut row_max = f32::NEG_INFINITY;
+            for j in 0..boost_candidates.len() {
+                row_max = row_max.max(bdiou[(i, j)]);
+            }
+            bdiou_max[i] = row_max;
+        }
+
+        let mut remaining_boxes: Vec<usize> = boost_candidates
             .iter()
-            .map(|&i| det_bboxes[i])
+            .enumerate()
+            .filter_map(|(i, &idx)| (bdiou_max[i] <= iou_limit).then_some(idx))
             .collect();
-        let bdiou = iou_batch(&boost_bboxes, &boost_bboxes);
 
-        // Apply NMS-like filtering
-        let mut remaining_boxes: Vec<usize> = Vec::new();
+        // args = where(bdiou_max > iou_limit)
+        let args: Vec<usize> = bdiou_max
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &v)| (v > iou_limit).then_some(i))
+            .collect();
 
-        for (bi, &det_idx) in boost_candidates.iter().enumerate() {
-            // Find max IoU with other boost candidates (excluding self)
-            let mut max_iou = 0.0f32;
-            for bj in 0..boost_candidates.len() {
-                if bi != bj {
-                    max_iou = max_iou.max(bdiou[(bi, bj)]);
-                }
+        // for each boxi in args:
+        //   tmp = where(bdiou[boxi] > iou_limit)
+        //   args_tmp = append(intersect1d(boost_args[args], boost_args[tmp]), boost_args[boxi])
+        //   if current conf == max conf(args_tmp): remaining += current
+        for &boxi in &args {
+            let tmp: Vec<usize> = (0..boost_candidates.len())
+                .filter(|&j| bdiou[(boxi, j)] > iou_limit)
+                .collect();
+
+            let args_set: std::collections::HashSet<usize> =
+                args.iter().map(|&j| boost_candidates[j]).collect();
+            let mut args_tmp: Vec<usize> = tmp
+                .iter()
+                .map(|&j| boost_candidates[j])
+                .filter(|idx| args_set.contains(idx))
+                .collect();
+            args_tmp.push(boost_candidates[boxi]);
+
+            if args_tmp.is_empty() {
+                continue;
             }
 
-            if max_iou <= iou_limit {
-                // No significant overlap, include this detection
-                remaining_boxes.push(det_idx);
-            } else {
-                // Has overlap, only include if it has max confidence among overlapping
-                let mut is_max_conf = true;
-                for (bj, &other_idx) in boost_candidates.iter().enumerate() {
-                    if bi != bj && bdiou[(bi, bj)] > iou_limit {
-                        if dets[other_idx][4] > dets[det_idx][4] {
-                            is_max_conf = false;
-                            break;
-                        }
-                    }
-                }
-                if is_max_conf {
-                    remaining_boxes.push(det_idx);
-                }
+            let conf_max = args_tmp
+                .iter()
+                .map(|&idx| dets[idx][4])
+                .fold(f32::NEG_INFINITY, f32::max);
+
+            if dets[boost_candidates[boxi]][4] == conf_max {
+                remaining_boxes.push(boost_candidates[boxi]);
             }
         }
 
-        // Boost only the remaining boxes
-        for det_idx in remaining_boxes {
-            dets[det_idx][4] = self.det_thresh + 1e-4;
+        // Build mask and apply boost like Python np.where(mask, det_thresh+1e-4, score)
+        let mut boost_mask = vec![false; dets.len()];
+        for idx in remaining_boxes {
+            boost_mask[idx] = true;
+        }
+        for i in 0..dets.len() {
+            if boost_mask[i] {
+                dets[i][4] = self.det_thresh + 1e-4;
+            }
         }
     }
 }
@@ -526,6 +682,7 @@ impl BoostTracker {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use image::{GrayImage, Luma};
 
     fn obj(x1: f32, y1: f32, x2: f32, y2: f32, prob: f32) -> Object {
         Object::new(Rect::new(x1, y1, x2, y2), prob, None)
@@ -692,6 +849,16 @@ mod tests {
 
         assert!(result.is_empty());
         assert_eq!(tracker.frame_count(), 1);
+    }
+
+    #[test]
+    fn test_update_with_frame_ecc_enabled() {
+        let mut tracker = BoostTracker::new(0.5, 0.3, 30, 1).with_ecc();
+        let objects = vec![obj(100.0, 100.0, 200.0, 200.0, 0.9)];
+        let gray = GrayImage::from_pixel(64, 48, Luma([127u8]));
+        let result = tracker.update_with_frame(&objects, &gray).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(tracker.tracker_count(), 1);
     }
 
     #[test]

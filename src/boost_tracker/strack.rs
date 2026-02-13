@@ -149,10 +149,30 @@ impl KalmanBoxTracker {
             .collect::<Vec<f32>>()
     }
 
-    // TODO: Camera motion compensation (optional)
-    // pub fn camera_update(&mut self, transform: &[[f32; 3]; 3]) {
-    //     unimplemented!("KalmanBoxTracker::camera_update")
-    // }
+    /// Apply camera motion compensation transform to the current state.
+    ///
+    /// The transform is expected to map points from template/previous frame
+    /// coordinates to current frame coordinates.
+    pub fn camera_update(&mut self, transform: &[[f32; 3]; 3]) {
+        let [x1, y1, x2, y2] = self.get_state();
+        let x1p = transform[0][0] * x1 + transform[0][1] * y1 + transform[0][2];
+        let y1p = transform[1][0] * x1 + transform[1][1] * y1 + transform[1][2];
+        let x2p = transform[0][0] * x2 + transform[0][1] * y2 + transform[0][2];
+        let y2p = transform[1][0] * x2 + transform[1][1] * y2 + transform[1][2];
+
+        let w = x2p - x1p;
+        let h = (y2p - y1p).max(1e-3);
+        let cx = x1p + w / 2.0;
+        let cy = y1p + h / 2.0;
+        let r = w / h;
+
+        let state = self.kf.state_mut();
+        let s = state.as_mut_slice();
+        s[0] = cx;
+        s[1] = cy;
+        s[2] = h;
+        s[3] = r;
+    }
 
     // TODO: Embedding support for BoostTrack++ (optional)
     // pub fn update_emb(&mut self, emb: &[f32], alpha: f32) {
@@ -536,5 +556,18 @@ mod tests {
         for &v in &cov_diag {
             assert!(v > 0.0);
         }
+    }
+
+    #[test]
+    fn test_camera_update_translation() {
+        let bbox = box_xyxy(100.0, 100.0, 200.0, 200.0);
+        let mut tracker = KalmanBoxTracker::new(&bbox, 0);
+        let t = [[1.0, 0.0, 5.0], [0.0, 1.0, -3.0], [0.0, 0.0, 1.0]];
+        tracker.camera_update(&t);
+        let state = tracker.get_state();
+        assert!((state[0] - 105.0).abs() < 1e-4);
+        assert!((state[1] - 97.0).abs() < 1e-4);
+        assert!((state[2] - 205.0).abs() < 1e-4);
+        assert!((state[3] - 197.0).abs() < 1e-4);
     }
 }

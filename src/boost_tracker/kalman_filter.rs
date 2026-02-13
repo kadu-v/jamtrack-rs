@@ -147,6 +147,10 @@ impl KalmanFilter {
     pub(crate) fn covariance(&self) -> &StateCov {
         &self.covariance
     }
+
+    pub(crate) fn state_mut(&mut self) -> &mut StateMean {
+        &mut self.x
+    }
 }
 
 #[cfg(test)]
