@@ -257,18 +257,62 @@ pub fn soft_biou_batch(
     soft_biou
 }
 
-/// Compute shape similarity between detections and tracks.
+/// Compute shape similarity using the original BoostTrack formula (v1).
 ///
-/// Shape similarity is based on the difference in width and height ratios.
-/// Uses the corrected formula (v2): `exp(-(|dw-tw|/max(dw,tw) + |dh-th|/max(dh,th)))`
-///
-/// # Arguments
-/// * `detections` - Slice of detection bounding boxes in [x1, y1, x2, y2] format
-/// * `tracks` - Slice of track bounding boxes in [x1, y1, x2, y2] format
-///
-/// # Returns
-/// A matrix of shape (num_detections, num_tracks) containing shape similarity values [0, 1]
-pub fn shape_similarity(
+/// This matches Python `shape_similarity_v1` when
+/// `BoostTrackSettings['s_sim_corr'] == False`.
+pub fn shape_similarity_v1(
+    detections: &[[f32; 4]],
+    tracks: &[[f32; 4]],
+) -> DMatrix<f32> {
+    // D: num_dets, T: num_trks
+    let num_dets = detections.len();
+    let num_trks = tracks.len();
+
+    if num_dets == 0 || num_trks == 0 {
+        return DMatrix::zeros(num_dets, num_trks);
+    }
+
+    // dw: [D, 1]
+    let mut dw = DMatrix::zeros(num_dets, 1);
+    for (i, det) in detections.iter().enumerate() {
+        dw[(i, 0)] = det[2] - det[0];
+    }
+
+    // dh: [D, 1]
+    let mut dh = DMatrix::zeros(num_dets, 1);
+    for (i, det) in detections.iter().enumerate() {
+        dh[(i, 0)] = det[3] - det[1];
+    }
+
+    // tw: [1, T]
+    let mut tw = DMatrix::zeros(1, num_trks);
+    for (j, trk) in tracks.iter().enumerate() {
+        tw[(0, j)] = trk[2] - trk[0];
+    }
+
+    // th: [1, T]
+    let mut th = DMatrix::zeros(1, num_trks);
+    for (j, trk) in tracks.iter().enumerate() {
+        th[(0, j)] = trk[3] - trk[1];
+    }
+
+    let mut shape_sim = DMatrix::zeros(num_dets, num_trks);
+    for i in 0..num_dets {
+        for j in 0..num_trks {
+            // NOTE: v1 uses max(dw, tw) for both width and height terms.
+            let denom = dw[(i, 0)].max(tw[(0, j)]);
+            shape_sim[(i, j)] = f32::exp(
+                -((f32::abs(dw[(i, 0)] - tw[(0, j)]) / denom)
+                    + (f32::abs(dh[(i, 0)] - th[(0, j)]) / denom)),
+            );
+        }
+    }
+    shape_sim
+}
+
+/// Compute shape similarity using the corrected BoostTrack formula (v2).
+pub fn shape_similarity_v2(
     detections: &[[f32; 4]],
     tracks: &[[f32; 4]],
 ) -> DMatrix<f32> {
@@ -457,11 +501,15 @@ pub fn match_detections(
     let n = nrows.max(ncols);
     let large_cost = 1e6;
 
+    let tie_break_eps = 1e-12_f64;
     let mut cost_vec: Vec<Vec<f64>> = vec![vec![large_cost; n]; n];
     for i in 0..nrows {
         for j in 0..ncols {
             // Negate to convert maximization to minimization
-            cost_vec[i][j] = -cost_matrix[(i, j)] as f64;
+            // Keep objective unchanged in practice while preferring higher row
+            // index in exact ties (closer to Python lap.lapjv tie behavior).
+            cost_vec[i][j] =
+                -cost_matrix[(i, j)] as f64 - tie_break_eps * (i as f64);
         }
     }
 
@@ -584,6 +632,7 @@ pub struct AssociateParams {
     pub lambda_iou: f32,
     pub lambda_mhd: f32,
     pub lambda_shape: f32,
+    pub use_shape_similarity_correction: bool,
 }
 
 impl Default for AssociateParams {
@@ -593,6 +642,7 @@ impl Default for AssociateParams {
             lambda_iou: 0.5,
             lambda_mhd: 0.25,
             lambda_shape: 0.25,
+            use_shape_similarity_correction: true,
         }
     }
 }
@@ -684,7 +734,11 @@ pub fn associate(
 
             // Add shape similarity if conf is available
             if let Some(ref conf) = conf {
-                let shape_sim = shape_similarity(detections, tracks);
+                let shape_sim = if params.use_shape_similarity_correction {
+                    shape_similarity_v2(detections, tracks)
+                } else {
+                    shape_similarity_v1(detections, tracks)
+                };
                 for i in 0..num_dets {
                     for j in 0..num_trks {
                         cost_matrix[(i, j)] += params.lambda_shape
@@ -850,7 +904,7 @@ mod tests {
         let dets = [box_xyxy(0.0, 0.0, 100.0, 100.0)];
         let trks = [box_xyxy(50.0, 50.0, 150.0, 150.0)]; // Same size, different position
 
-        let sim = shape_similarity(&dets, &trks);
+        let sim = shape_similarity_v2(&dets, &trks);
 
         assert_nearly_eq!(sim[(0, 0)], 1.0, 1e-5);
     }
@@ -867,7 +921,7 @@ mod tests {
             box_xyxy(0.0, 0.0, 200.0, 100.0), // 200x100
         ];
 
-        let sim = shape_similarity(&dets, &trks);
+        let sim = shape_similarity_v2(&dets, &trks);
 
         assert_eq!(sim.nrows(), 3);
         assert_eq!(sim.ncols(), 2);
@@ -888,7 +942,7 @@ mod tests {
         let dets = [box_xyxy(0.0, 0.0, 100.0, 100.0)];
         let trks = [box_xyxy(0.0, 0.0, 200.0, 100.0)];
 
-        let sim = shape_similarity(&dets, &trks);
+        let sim = shape_similarity_v2(&dets, &trks);
 
         // |100-200|/max(100,200) = 0.5, |100-100|/max(100,100) = 0
         // exp(-(0.5 + 0)) = exp(-0.5)
@@ -901,7 +955,7 @@ mod tests {
         let dets = [box_xyxy(0.0, 0.0, 100.0, 100.0)];
         let trks = [box_xyxy(0.0, 0.0, 100.0, 200.0)];
 
-        let sim = shape_similarity(&dets, &trks);
+        let sim = shape_similarity_v2(&dets, &trks);
 
         // |100-100|/max(100,100) = 0, |100-200|/max(100,200) = 0.5
         // exp(-(0 + 0.5)) = exp(-0.5)
@@ -914,7 +968,7 @@ mod tests {
         let dets = [box_xyxy(0.0, 0.0, 100.0, 100.0)];
         let trks = [box_xyxy(0.0, 0.0, 200.0, 200.0)];
 
-        let sim = shape_similarity(&dets, &trks);
+        let sim = shape_similarity_v2(&dets, &trks);
 
         // |100-200|/max(100,200) = 0.5, |100-200|/max(100,200) = 0.5
         // exp(-(0.5 + 0.5)) = exp(-1)
@@ -927,7 +981,7 @@ mod tests {
         let dets = [box_xyxy(0.0, 0.0, 100.0, 100.0)];
         let trks = [box_xyxy(0.0, 0.0, 50.0, 50.0)];
 
-        let sim = shape_similarity(&dets, &trks);
+        let sim = shape_similarity_v2(&dets, &trks);
 
         // |100-50|/max(100,50) = 0.5, |100-50|/max(100,50) = 0.5
         // exp(-(0.5 + 0.5)) = exp(-1)
@@ -940,7 +994,7 @@ mod tests {
         let dets = [box_xyxy(0.0, 0.0, 100.0, 200.0)];
         let trks = [box_xyxy(0.0, 0.0, 200.0, 100.0)];
 
-        let sim = shape_similarity(&dets, &trks);
+        let sim = shape_similarity_v2(&dets, &trks);
 
         // |100-200|/max(100,200) = 0.5, |200-100|/max(200,100) = 0.5
         // exp(-(0.5 + 0.5)) = exp(-1)
@@ -953,7 +1007,7 @@ mod tests {
         let dets = [box_xyxy(0.0, 0.0, 100.0, 100.0)];
         let trks = [box_xyxy(0.0, 0.0, 10.0, 10.0)];
 
-        let sim = shape_similarity(&dets, &trks);
+        let sim = shape_similarity_v2(&dets, &trks);
 
         // |100-10|/max(100,10) = 0.9, |100-10|/max(100,10) = 0.9
         // exp(-(0.9 + 0.9)) = exp(-1.8)
@@ -965,7 +1019,7 @@ mod tests {
         let dets: [[f32; 4]; 0] = [];
         let trks = [box_xyxy(0.0, 0.0, 100.0, 100.0)];
 
-        let sim = shape_similarity(&dets, &trks);
+        let sim = shape_similarity_v2(&dets, &trks);
 
         assert_eq!(sim.nrows(), 0);
         assert_eq!(sim.ncols(), 1);
@@ -1469,6 +1523,7 @@ mod tests {
             lambda_iou: 0.5,
             lambda_mhd: 0.25,
             lambda_shape: 0.25,
+            use_shape_similarity_correction: true,
         };
         let det_conf = [0.9, 0.8];
         let trk_conf = [0.85, 0.9];

@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
+use image::{GrayImage, Luma};
 use jamtrack_rs::{boost_tracker::BoostTracker, object::Object, rect::Rect};
 use serde::Deserialize;
 
@@ -71,6 +72,26 @@ fn load_detections() -> Vec<(usize, Vec<Object>)> {
     detections
 }
 
+fn synthetic_frames(
+    num_frames: usize,
+    width: u32,
+    height: u32,
+) -> Vec<GrayImage> {
+    let mut frames = Vec::with_capacity(num_frames);
+    for i in 0..num_frames {
+        let mut frame = GrayImage::new(width, height);
+        for y in 0..height {
+            for x in 0..width {
+                // Deterministic pattern with mild frame-to-frame drift.
+                let v = (((x + y + (i as u32 % 23)) % 255) as u8).max(8);
+                frame.put_pixel(x, y, Luma([v]));
+            }
+        }
+        frames.push(frame);
+    }
+    frames
+}
+
 /* ----------------------------------------------------------------------------
  * Benchmarks
  * ---------------------------------------------------------------------------- */
@@ -116,12 +137,63 @@ fn bench_boosttrack_plusplus(c: &mut Criterion) {
     });
 }
 
+fn bench_boosttrack_basic_ecc(c: &mut Criterion) {
+    let detections = load_detections();
+    let frames = synthetic_frames(detections.len(), 640, 384);
+
+    c.bench_function("boosttrack_basic_ecc", |b| {
+        b.iter(|| {
+            let mut tracker = BoostTracker::new(0.5, 0.3, 30, 3).with_ecc();
+            for (i, (_, objs)) in detections.iter().enumerate() {
+                let _ = tracker.update_with_frame(objs, &frames[i]);
+            }
+        });
+    });
+}
+
+fn bench_boosttrack_plus_ecc(c: &mut Criterion) {
+    let detections = load_detections();
+    let frames = synthetic_frames(detections.len(), 640, 384);
+
+    c.bench_function("boosttrack_plus_ecc", |b| {
+        b.iter(|| {
+            let mut tracker = BoostTracker::new(0.5, 0.3, 30, 3)
+                .with_boost_plus()
+                .with_ecc();
+            for (i, (_, objs)) in detections.iter().enumerate() {
+                let _ = tracker.update_with_frame(objs, &frames[i]);
+            }
+        });
+    });
+}
+
+fn bench_boosttrack_plusplus_ecc(c: &mut Criterion) {
+    let detections = load_detections();
+    let frames = synthetic_frames(detections.len(), 640, 384);
+
+    c.bench_function("boosttrack_plusplus_ecc", |b| {
+        b.iter(|| {
+            let mut tracker = BoostTracker::new(0.5, 0.3, 30, 3)
+                .with_boost_plus_plus()
+                .with_ecc();
+            for (i, (_, objs)) in detections.iter().enumerate() {
+                let _ = tracker.update_with_frame(objs, &frames[i]);
+            }
+        });
+    });
+}
+
 criterion_group! {
     name = benches;
     config = Criterion::default()
         .sample_size(50)
         .measurement_time(Duration::from_secs(10))
         .warm_up_time(Duration::from_secs(3));
-    targets = bench_boosttrack_basic, bench_boosttrack_plus, bench_boosttrack_plusplus
+    targets = bench_boosttrack_basic,
+              bench_boosttrack_plus,
+              bench_boosttrack_plusplus,
+              bench_boosttrack_basic_ecc,
+              bench_boosttrack_plus_ecc,
+              bench_boosttrack_plusplus_ecc
 }
 criterion_main!(benches);
