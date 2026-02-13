@@ -186,9 +186,9 @@ fn bench_boosttrack_plusplus_ecc(c: &mut Criterion) {
 criterion_group! {
     name = benches;
     config = Criterion::default()
-        .sample_size(50)
-        .measurement_time(Duration::from_secs(10))
-        .warm_up_time(Duration::from_secs(3));
+        .sample_size(10)
+        .measurement_time(Duration::from_secs(6))
+        .warm_up_time(Duration::from_secs(2));
     targets = bench_boosttrack_basic,
               bench_boosttrack_plus,
               bench_boosttrack_plusplus,

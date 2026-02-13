@@ -132,31 +132,40 @@ pub fn find_transform_ecc_euclidean(
     let mut last_rho = f32::NEG_INFINITY;
     let mut rho = -1.0f32;
 
-    let mut xgrid = vec![0.0f32; tw * th];
-    let mut ygrid = vec![0.0f32; tw * th];
-    for y in 0..th {
-        for x in 0..tw {
-            let i = y * tw + x;
-            xgrid[i] = x as f32;
-            ygrid[i] = y as f32;
-        }
-    }
+    let n = tw * th;
+    let mut warped = vec![0.0f32; n];
+    let mut gxw = vec![0.0f32; n];
+    let mut gyw = vec![0.0f32; n];
+    let mut valid = vec![false; n];
+    let mut template_zm = vec![0.0f32; n];
+    let mut image_zm = vec![0.0f32; n];
 
     for _ in 0..cfg.max_iter {
         let map = affine_from_theta_tx_ty(theta, tx, ty);
-        let warped = warp_affine_inverse_map(&input_blur, tw, th, &map);
-        let gxw = warp_affine_inverse_map(&grad_x, tw, th, &map);
-        let gyw = warp_affine_inverse_map(&grad_y, tw, th, &map);
-        let valid = valid_mask_from_map(tw, th, &map);
+        let valid_count = warp_three_inverse_map(
+            &input_blur,
+            &grad_x,
+            &grad_y,
+            tw,
+            th,
+            &map,
+            &mut warped,
+            &mut gxw,
+            &mut gyw,
+            &mut valid,
+        );
 
-        let valid_count = valid.iter().filter(|&&v| v).count();
         if valid_count < 16 {
             return Err(BoostTrackErr::NotConverged);
         }
 
-        let (t_mean, i_mean) = means_over_mask(&template_blur, &warped, &valid);
-        let (template_zm, image_zm, tmp_norm, img_norm, corr) =
-            centered_stats(&template_blur, &warped, &valid, t_mean, i_mean);
+        let (tmp_norm, img_norm, corr) = centered_stats_in_place(
+            &template_blur,
+            &warped,
+            &valid,
+            &mut template_zm,
+            &mut image_zm,
+        );
 
         if tmp_norm <= 1e-6 || img_norm <= 1e-6 {
             return Err(BoostTrackErr::NotConverged);
@@ -180,12 +189,14 @@ pub fn find_transform_ecc_euclidean(
         let mut template_proj = [0.0f32; 3];
         let mut error_proj = [0.0f32; 3];
 
-        for i in 0..(tw * th) {
+        for i in 0..n {
             if !valid[i] {
                 continue;
             }
-            let hat_x = -(xgrid[i] * st) - (ygrid[i] * ct);
-            let hat_y = (xgrid[i] * ct) - (ygrid[i] * st);
+            let x = (i % tw) as f32;
+            let y = (i / tw) as f32;
+            let hat_x = -(x * st) - (y * ct);
+            let hat_y = (x * ct) - (y * st);
             let j0 = gxw[i] * hat_x + gyw[i] * hat_y;
             let j1 = gxw[i];
             let j2 = gyw[i];
@@ -224,12 +235,14 @@ pub fn find_transform_ecc_euclidean(
             return Err(BoostTrackErr::NotConverged);
         }
 
-        for i in 0..(tw * th) {
+        for i in 0..n {
             if !valid[i] {
                 continue;
             }
-            let hat_x = -(xgrid[i] * st) - (ygrid[i] * ct);
-            let hat_y = (xgrid[i] * ct) - (ygrid[i] * st);
+            let x = (i % tw) as f32;
+            let y = (i / tw) as f32;
+            let hat_x = -(x * st) - (y * ct);
+            let hat_y = (x * ct) - (y * st);
             let j0 = gxw[i] * hat_x + gyw[i] * hat_y;
             let j1 = gxw[i];
             let j2 = gyw[i];
@@ -390,6 +403,7 @@ fn gradient_y(src: &[f32], w: usize, h: usize) -> Vec<f32> {
     out
 }
 
+#[cfg(test)]
 fn warp_affine_inverse_map(
     src: &[f32],
     w: usize,
@@ -409,23 +423,61 @@ fn warp_affine_inverse_map(
     out
 }
 
-fn valid_mask_from_map(w: usize, h: usize, map: &[[f32; 3]; 3]) -> Vec<bool> {
-    let mut mask = vec![false; w * h];
+#[allow(clippy::too_many_arguments)]
+fn warp_three_inverse_map(
+    src0: &[f32],
+    src1: &[f32],
+    src2: &[f32],
+    w: usize,
+    h: usize,
+    map: &[[f32; 3]; 3],
+    out0: &mut [f32],
+    out1: &mut [f32],
+    out2: &mut [f32],
+    valid: &mut [bool],
+) -> usize {
+    let mut valid_count = 0usize;
     for y in 0..h {
         for x in 0..w {
+            let i = y * w + x;
             let xf = x as f32;
             let yf = y as f32;
             let sx = map[0][0] * xf + map[0][1] * yf + map[0][2];
             let sy = map[1][0] * xf + map[1][1] * yf + map[1][2];
-            mask[y * w + x] = sx >= 0.0
-                && sy >= 0.0
-                && sx < (w - 1) as f32
-                && sy < (h - 1) as f32;
+            if sx >= 0.0 && sy >= 0.0 && sx < (w - 1) as f32 && sy < (h - 1) as f32 {
+                let x0 = sx.floor() as usize;
+                let y0 = sy.floor() as usize;
+                let x1 = x0 + 1;
+                let y1 = y0 + 1;
+                let wx = sx - x0 as f32;
+                let wy = sy - y0 as f32;
+                let w00 = (1.0 - wx) * (1.0 - wy);
+                let w01 = wx * (1.0 - wy);
+                let w10 = (1.0 - wx) * wy;
+                let w11 = wx * wy;
+
+                let i00 = y0 * w + x0;
+                let i01 = y0 * w + x1;
+                let i10 = y1 * w + x0;
+                let i11 = y1 * w + x1;
+
+                out0[i] = src0[i00] * w00 + src0[i01] * w01 + src0[i10] * w10 + src0[i11] * w11;
+                out1[i] = src1[i00] * w00 + src1[i01] * w01 + src1[i10] * w10 + src1[i11] * w11;
+                out2[i] = src2[i00] * w00 + src2[i01] * w01 + src2[i10] * w10 + src2[i11] * w11;
+                valid[i] = true;
+                valid_count += 1;
+            } else {
+                out0[i] = 0.0;
+                out1[i] = 0.0;
+                out2[i] = 0.0;
+                valid[i] = false;
+            }
         }
     }
-    mask
+    valid_count
 }
 
+#[cfg(test)]
 fn bilinear_at(src: &[f32], w: usize, h: usize, x: f32, y: f32) -> f32 {
     if x < 0.0 || y < 0.0 || x >= (w - 1) as f32 || y >= (h - 1) as f32 {
         return 0.0;
@@ -459,31 +511,32 @@ fn means_over_mask(a: &[f32], b: &[f32], mask: &[bool]) -> (f32, f32) {
     (sa / nf, sb / nf)
 }
 
-fn centered_stats(
+fn centered_stats_in_place(
     template: &[f32],
     image: &[f32],
     mask: &[bool],
-    t_mean: f32,
-    i_mean: f32,
-) -> (Vec<f32>, Vec<f32>, f32, f32, f32) {
-    let mut tz = vec![0.0f32; template.len()];
-    let mut iz = vec![0.0f32; image.len()];
+    template_zm: &mut [f32],
+    image_zm: &mut [f32],
+) -> (f32, f32, f32) {
+    let (t_mean, i_mean) = means_over_mask(template, image, mask);
     let mut t_ss = 0.0f32;
     let mut i_ss = 0.0f32;
     let mut corr = 0.0f32;
     for i in 0..template.len() {
         if !mask[i] {
+            template_zm[i] = 0.0;
+            image_zm[i] = 0.0;
             continue;
         }
         let tv = template[i] - t_mean;
         let iv = image[i] - i_mean;
-        tz[i] = tv;
-        iz[i] = iv;
+        template_zm[i] = tv;
+        image_zm[i] = iv;
         t_ss += tv * tv;
         i_ss += iv * iv;
         corr += tv * iv;
     }
-    (tz, iz, t_ss.sqrt(), i_ss.sqrt(), corr)
+    (t_ss.sqrt(), i_ss.sqrt(), corr)
 }
 
 #[cfg(test)]
