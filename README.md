@@ -168,14 +168,17 @@ Evaluation results on MOT17 train set using YOLOX-X detector:
 | OfficialByteTrackerTuned (Python) | 67.92 | 80.90 | 77.47 | 453 |
 | OfficialBoostTrack++ (Python) | 67.87 | 78.89 | 76.91 | 515 |
 | OfficialBoostTrack (Python) | 67.30 | 78.26 | 76.00 | 520 |
-| BoostTrack (Rust) | 66.18 | 78.20 | 74.27 | 539 |
-| BoostTrack++ (Rust) | 66.11 | 78.81 | 74.21 | 570 |
-| OfficialByteTracker (Python) | 59.73 | 70.31 | 69.94 | 483 |
-| ByteTracker (Rust) | 58.98 | 69.91 | 68.68 | 503 |
+| **BoostTrack++ECC (Rust)** | 68.35 | 79.80 | 77.98 | 318 |
+| BoostTrackECC (Rust) | 68.39 | 79.06 | 77.94 | 344 |
+| OfficialByteTracker (Python) | 67.82 | 80.92 | 77.29 | 458 |
+| ByteTracker (Rust) | 68.35 | 80.97 | 77.89 | 454 |
+| BoostTrack++ (Rust) | 66.02 | 78.86 | 74.29 | 558 |
+| BoostTrack (Rust) | 66.03 | 78.24 | 74.13 | 536 |
+| BoostTrack+ (Rust) | 65.93 | 78.57 | 74.11 | 560 |
 
 > [!NOTE]
 > - ECC variants show significant improvement in HOTA/IDF1/IDSW due to camera motion compensation
-> - Rust BoostTrack has slightly lower HOTA/IDF1 because ECC (camera motion compensation) and Embedding (Re-ID features) are not yet implemented
+> - Rust BoostTrack supports ECC; embedding (Re-ID features) is still not implemented
 > - MOTA is determined by the core algorithm, so Rust and Python versions achieve nearly identical values
 > - *Tuned* variants use optimized hyperparameters of a tracker for MOT17 dataset
 
@@ -210,7 +213,7 @@ cargo run --example example_boost_tracker_modes plusplus
 | Soft Boost | No | No | No | Yes |
 | Varying Threshold | No | No | No | Yes |
 | Embedding (Re-ID) | No | No | No | No |
-| ECC (Camera Motion Compensation) | No | No | No | No |
+| ECC (Camera Motion Compensation) | No | Yes | Yes | Yes |
 
 ## References
 
