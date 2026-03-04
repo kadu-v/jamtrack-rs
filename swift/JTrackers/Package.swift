@@ -7,10 +7,13 @@ let package = Package(
     products: [
         .library(name: "JTrackers", targets: ["JTrackers"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
+    ],
     targets: [
         .binaryTarget(
             name: "JamTrack",
-            path: "Artifacts/JamTrack.xcframework"
+            path: "Artifacts/JamTrack.xcframework.zip"
         ),
         .target(
             name: "JTrackers",

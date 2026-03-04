@@ -9,23 +9,23 @@ final class ByteTrackerTests: XCTestCase {
         ]
     }
 
-    func testCreateAndDestroy() throws {
-        let _ = try ByteTracker()
+    func testCreateAndDestroy() {
+        let _ = ByteTracker()
     }
 
     func testSingleFrameUpdate() throws {
-        let tracker = try ByteTracker()
-        let results = try tracker.update(Self.sampleObjects())
+        let tracker = ByteTracker()
+        let results = try tracker.update(Self.sampleObjects()).get()
         XCTAssertGreaterThan(results.count, 0)
     }
 
     func testMultiFrameTrackId() throws {
-        let tracker = try ByteTracker(trackThresh: 0.3, highThresh: 0.4, matchThresh: 0.8)
+        let tracker = ByteTracker(trackThresh: 0.3, highThresh: 0.4, matchThresh: 0.8)
         let objects = Self.sampleObjects()
 
         var lastResults: [TrackedObject] = []
         for _ in 0..<5 {
-            lastResults = try tracker.update(objects)
+            lastResults = try tracker.update(objects).get()
         }
 
         let ids = lastResults.compactMap(\.trackId)
@@ -33,8 +33,8 @@ final class ByteTrackerTests: XCTestCase {
     }
 
     func testEmptyInput() throws {
-        let tracker = try ByteTracker()
-        let results = try tracker.update([])
+        let tracker = ByteTracker()
+        let results = try tracker.update([]).get()
         XCTAssertTrue(results.isEmpty)
     }
 }

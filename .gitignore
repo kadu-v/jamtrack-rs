@@ -19,4 +19,6 @@ auto.py
 # xcframework build artifacts
 swift/JTrackers/Artifacts/
 swift/JTrackers/.build/
+swift/JTrackers/docs/
+swift/workspace/
 *.xcframework
