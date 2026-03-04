@@ -16,6 +16,10 @@ harness = false
 name = "boosttrack_benchmark"
 harness = false
 
+[[bench]]
+name = "ocsort_benchmark"
+harness = false
+
 
 [dependencies]
 thiserror = "1.0.66"
