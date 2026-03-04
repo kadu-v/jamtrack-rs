@@ -14,3 +14,9 @@ Cargo.lock
 *.pdb
 output/
 .venv/
+auto.py
+
+# xcframework build artifacts
+swift/JTrackers/Artifacts/
+swift/JTrackers/.build/
+*.xcframework

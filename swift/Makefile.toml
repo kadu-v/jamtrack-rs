@@ -1,0 +1,126 @@
+[config]
+default_to_workspace = false
+
+[env]
+FRAMEWORK_TEMPLATE = "JamTrack.Framework"
+XCFRAMEWORK_OUTPUT = "JTrackers/Artifacts/JamTrack.xcframework"
+
+# ---------------------------------------------------------------------------
+# Build targets
+# ---------------------------------------------------------------------------
+
+[tasks.build-macos]
+description = "Build static library for macOS (arm64)"
+command = "cargo"
+args = ["build", "--release", "--features", "ffi", "--target", "aarch64-apple-darwin", "--manifest-path", "../Cargo.toml"]
+
+[tasks.build-ios]
+description = "Build static library for iOS (arm64)"
+command = "cargo"
+args = ["build", "--release", "--features", "ffi", "--target", "aarch64-apple-ios", "--manifest-path", "../Cargo.toml"]
+
+[tasks.build-ios-sim]
+description = "Build static library for iOS Simulator (arm64)"
+command = "cargo"
+args = ["build", "--release", "--features", "ffi", "--target", "aarch64-apple-ios-sim", "--manifest-path", "../Cargo.toml"]
+
+# ---------------------------------------------------------------------------
+# Stage framework bundles per platform
+# ---------------------------------------------------------------------------
+
+[tasks.stage-framework]
+description = "Assemble .framework bundles for each platform from the template"
+dependencies = ["build-macos", "build-ios", "build-ios-sim"]
+script_runner = "@shell"
+script = '''
+set -euo pipefail
+
+STAGING="target/framework-staging"
+rm -rf "${STAGING}"
+
+for PLATFORM_TUPLE in \
+    "macos:aarch64-apple-darwin" \
+    "ios:aarch64-apple-ios" \
+    "ios-sim:aarch64-apple-ios-sim"
+do
+    PLATFORM="${PLATFORM_TUPLE%%:*}"
+    TARGET="${PLATFORM_TUPLE##*:}"
+    DEST="${STAGING}/${PLATFORM}/JamTrack.framework"
+
+    mkdir -p "${DEST}/Headers" "${DEST}/Modules"
+    cp "${FRAMEWORK_TEMPLATE}/Headers/jamtrack_api.h"    "${DEST}/Headers/"
+    cp "${FRAMEWORK_TEMPLATE}/Headers/JamTrack.h"        "${DEST}/Headers/"
+    cp "${FRAMEWORK_TEMPLATE}/Modules/module.modulemap"  "${DEST}/Modules/"
+    cp "${FRAMEWORK_TEMPLATE}/Info.plist"                 "${DEST}/"
+    cp "../target/${TARGET}/release/libjamtrack_rs.a"     "${DEST}/JamTrack"
+done
+
+echo "Frameworks staged under ${STAGING}"
+'''
+
+# ---------------------------------------------------------------------------
+# xcframework
+# ---------------------------------------------------------------------------
+
+[tasks.build-xcframework]
+description = "Create JamTrack.xcframework for SwiftPM"
+dependencies = ["stage-framework"]
+script_runner = "@shell"
+script = '''
+set -euo pipefail
+
+STAGING="target/framework-staging"
+OUTPUT="${XCFRAMEWORK_OUTPUT}"
+
+rm -rf "${OUTPUT}"
+
+DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" \
+xcodebuild -create-xcframework \
+    -framework "${STAGING}/macos/JamTrack.framework" \
+    -framework "${STAGING}/ios/JamTrack.framework" \
+    -framework "${STAGING}/ios-sim/JamTrack.framework" \
+    -output "${OUTPUT}"
+
+echo "xcframework created at ${OUTPUT}"
+'''
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+[tasks.test-rust]
+description = "Run Rust tests (including FFI)"
+command = "cargo"
+args = ["test", "--features", "ffi", "--manifest-path", "../Cargo.toml"]
+
+[tasks.test-swift]
+description = "Run Swift package tests"
+dependencies = ["build-xcframework"]
+script_runner = "@shell"
+script = '''
+set -euo pipefail
+cd JTrackers
+if command -v xcbeautify >/dev/null 2>&1; then
+    swift test 2>&1 | xcbeautify
+else
+    swift test
+fi
+'''
+
+[tasks.test]
+description = "Run all tests"
+dependencies = ["test-rust", "test-swift"]
+
+# ---------------------------------------------------------------------------
+# Clean
+# ---------------------------------------------------------------------------
+
+[tasks.clean]
+description = "Remove build artifacts"
+script_runner = "@shell"
+script = '''
+set -euo pipefail
+cargo clean --manifest-path ../Cargo.toml
+rm -rf target/framework-staging
+rm -rf JTrackers/Artifacts
+'''

@@ -8,6 +8,13 @@ license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+crate-type = ["rlib", "staticlib"]
+
+[features]
+default = []
+ffi = []
+
 [[bench]]
 name = "bytetrack_benchmark"
 harness = false

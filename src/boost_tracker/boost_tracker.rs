@@ -399,6 +399,16 @@ impl BoostTracker {
         self.trackers.len()
     }
 
+    /// Returns `true` if soft-boost (BoostTrack++) is active.
+    pub fn uses_soft_boost(&self) -> bool {
+        self.use_soft_boost
+    }
+
+    /// Returns `true` if varying threshold (BoostTrack++) is active.
+    pub fn uses_varying_threshold(&self) -> bool {
+        self.use_varying_threshold
+    }
+
     // =========================================================================
     // Internal methods
     // =========================================================================
