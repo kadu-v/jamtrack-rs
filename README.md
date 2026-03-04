@@ -4,7 +4,7 @@
     <img src="./data/logo/jam.jpeg" width="200">
 </p>
 
-JamTrack-rs is a Rust crate that provides multi-object tracking algorithms including [ByteTrack](https://arxiv.org/abs/2110.06864) and [BoostTrack](https://arxiv.org/abs/2408.13003).
+JamTrack-rs is a Rust crate that provides multi-object tracking algorithms including [ByteTrack](https://arxiv.org/abs/2110.06864), [BoostTrack](https://arxiv.org/abs/2408.13003), and [OC-SORT](https://arxiv.org/abs/2203.14360).
 
 ## Features
 
@@ -13,6 +13,11 @@ JamTrack-rs is a Rust crate that provides multi-object tracking algorithms inclu
   - **BoostTrack**: Basic DLO/DUO confidence boost
   - **BoostTrack+**: Rich similarity (Mahalanobis distance + shape + soft BIoU)
   - **BoostTrack++**: Rich similarity + soft boost + varying threshold
+- **OC-SORT**: Observation-Centric SORT with online smoothing
+  - IoU + VDC (Velocity Direction Consistency) association
+  - BYTE association for low-confidence detections
+  - OCR (Observation-Centric Re-association) with last observation
+  - Kalman filter freeze/unfreeze for online smoothing
 
 ## Demo Videos
 
@@ -125,6 +130,36 @@ let mut custom_tracker = BoostTracker::new(0.5, 0.3, 30, 3)
     .with_boost_plus_plus();
 ```
 
+### OC-SORT
+
+```rust
+use jamtrack_rs::oc_sort_tracker::OCSort;
+use jamtrack_rs::object::Object;
+use jamtrack_rs::rect::Rect;
+
+// Create tracker with detection threshold
+let mut tracker = OCSort::new(0.5)
+    .with_max_age(30)
+    .with_min_hits(3)
+    .with_iou_threshold(0.3)
+    .with_delta_t(3)
+    .with_inertia(0.2)
+    .with_byte(false); // enable BYTE association for low-score detections
+
+// Create detections
+let detections = vec![
+    Object::new(Rect::new(100.0, 100.0, 50.0, 80.0), 0.9, None),
+    Object::new(Rect::new(200.0, 150.0, 60.0, 90.0), 0.85, None),
+];
+
+// Update tracker
+let tracks = tracker.update(&detections).unwrap();
+
+for track in tracks {
+    println!("Track ID: {:?}, Rect: {:?}", track.get_track_id(), track.get_rect());
+}
+```
+
 ## Benchmark
 
 Tested on M3 MacBook Pro with 1627 frames from detection_results.json.
@@ -133,10 +168,12 @@ Tested on M3 MacBook Pro with 1627 frames from detection_results.json.
 
 | Tracker | Time | Relative |
 |---------|------|----------|
-| BoostTrack | **63.4 ms** | 1.00x (fastest) |
-| BoostTrack++ | 77.9 ms | 1.23x |
-| ByteTracker | 80.9 ms | 1.28x |
-| BoostTrack+ | 84.1 ms | 1.33x |
+| OC-SORT | **33.2 ms** | 1.00x (fastest) |
+| OC-SORT + BYTE | 56.8 ms | 1.71x |
+| BoostTrack | 63.4 ms | 1.91x |
+| BoostTrack++ | 77.9 ms | 2.35x |
+| ByteTracker | 80.9 ms | 2.44x |
+| BoostTrack+ | 84.1 ms | 2.53x |
 
 ### Why is BoostTrack++ faster than BoostTrack+?
 
@@ -202,23 +239,28 @@ cargo run --example example_boost_tracker_modes plusplus
 
 ## Tracker Comparison
 
-| Feature | ByteTracker | BoostTrack | BoostTrack+ | BoostTrack++ |
-|---------|-------------|------------|-------------|--------------|
-| IoU Association | Yes | Yes | Yes | Yes |
-| Mahalanobis Distance | No | Yes | Yes | Yes |
-| Shape Similarity | No | No | Yes | Yes |
-| DLO Confidence Boost | No | Yes | Yes | Yes |
-| DUO Confidence Boost | No | Yes | Yes | Yes |
-| Rich Similarity | No | No | Yes | Yes |
-| Soft Boost | No | No | No | Yes |
-| Varying Threshold | No | No | No | Yes |
-| Embedding (Re-ID) | No | No | No | No |
-| ECC (Camera Motion Compensation) | No | Yes | Yes | Yes |
+| Feature | ByteTracker | BoostTrack | BoostTrack+ | BoostTrack++ | OC-SORT |
+|---------|-------------|------------|-------------|--------------|---------|
+| IoU Association | Yes | Yes | Yes | Yes | Yes |
+| Mahalanobis Distance | No | Yes | Yes | Yes | No |
+| Shape Similarity | No | No | Yes | Yes | No |
+| DLO Confidence Boost | No | Yes | Yes | Yes | No |
+| DUO Confidence Boost | No | Yes | Yes | Yes | No |
+| Rich Similarity | No | No | Yes | Yes | No |
+| Soft Boost | No | No | No | Yes | No |
+| Varying Threshold | No | No | No | Yes | No |
+| VDC (Velocity Direction Consistency) | No | No | No | No | Yes |
+| OCR (Re-association) | No | No | No | No | Yes |
+| Online Smoothing (Freeze/Unfreeze) | No | No | No | No | Yes |
+| BYTE Association | Yes | No | No | No | Yes |
+| Embedding (Re-ID) | No | No | No | No | No |
+| ECC (Camera Motion Compensation) | No | Yes | Yes | Yes | No |
 
 ## References
 
 - [ByteTrack: Multi-Object Tracking by Associating Every Detection Box](https://arxiv.org/abs/2110.06864)
 - [BoostTrack: Boosting the Similarity Measure and Detection Confidence for Improved Multiple Object Tracking](https://arxiv.org/abs/2408.13003)
+- [OC-SORT: Observation-Centric SORT on video Multi-Object Tracking](https://arxiv.org/abs/2203.14360)
 
 ## License
 
