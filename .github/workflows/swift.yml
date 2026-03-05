@@ -1,0 +1,103 @@
+name: Swift Package CI/CD
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag (e.g. v0.4.0)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Build & Test
+  # ---------------------------------------------------------------------------
+  test:
+    name: Build & Test
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Install cargo-make
+        run: brew install cargo-make
+
+      - name: Run all tests
+        working-directory: swift
+        run: cargo make test
+
+      - name: Upload xcframework artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JamTrack-xcframework
+          path: swift/JTrackers/Artifacts/JamTrack.xcframework.zip
+          retention-days: 5
+
+  # ---------------------------------------------------------------------------
+  # Deploy (tag push or manual trigger only)
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Deploy Swift Package
+    needs: test
+    runs-on: macos-15
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          if ! [[ "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid version format: ${VERSION}. Use vX.Y.Z"
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Install cargo-make
+        run: brew install cargo-make
+
+      - name: Configure SSH for deploy
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.JTRACKERS_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${DEPLOY_SSH_KEY}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy to JTrackers repository
+        working-directory: swift
+        env:
+          GIT_SSH_COMMAND: "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no"
+          VERSION: ${{ steps.version.outputs.version }}
+        run: cargo make deploy
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: swift/JTrackers/Artifacts/JamTrack.xcframework.zip
+          generate_release_notes: true
