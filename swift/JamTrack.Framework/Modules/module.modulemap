@@ -1,0 +1,5 @@
+framework module JamTrack {
+    umbrella header "JamTrack.h"
+    export *
+    module * { export * }
+}

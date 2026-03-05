@@ -1,0 +1,324 @@
+[config]
+default_to_workspace = false
+
+[env]
+FRAMEWORK_TEMPLATE = "JamTrack.Framework"
+XCFRAMEWORK_OUTPUT = "JTrackers/Artifacts/JamTrack.xcframework"
+JTRACKERS_REPO_URL = "git@github.com:kadu-v/JTrackers.git"
+
+# ---------------------------------------------------------------------------
+# Show
+# ---------------------------------------------------------------------------
+
+[tasks.show]
+category = "jtrackers"
+description = "List available tasks"
+command = "cargo"
+args = ["make", "--makefile", "./Makefile.toml", "--list-category-steps", "jtrackers"]
+
+# ---------------------------------------------------------------------------
+# Build targets
+# ---------------------------------------------------------------------------
+
+[tasks.build-macos]
+category = "jtrackers"
+description = "Build static library for macOS (arm64)"
+command = "cargo"
+args = ["build", "--release", "--features", "ffi", "--target", "aarch64-apple-darwin", "--manifest-path", "../Cargo.toml"]
+
+[tasks.build-ios]
+category = "jtrackers"
+description = "Build static library for iOS (arm64)"
+command = "cargo"
+args = ["build", "--release", "--features", "ffi", "--target", "aarch64-apple-ios", "--manifest-path", "../Cargo.toml"]
+
+[tasks.build-ios-sim]
+category = "jtrackers"
+description = "Build static library for iOS Simulator (arm64)"
+command = "cargo"
+args = ["build", "--release", "--features", "ffi", "--target", "aarch64-apple-ios-sim", "--manifest-path", "../Cargo.toml"]
+
+# ---------------------------------------------------------------------------
+# Stage framework bundles per platform
+# ---------------------------------------------------------------------------
+
+[tasks.stage-framework]
+category = "jtrackers"
+description = "Assemble .framework bundles for each platform from the template"
+dependencies = ["build-macos", "build-ios", "build-ios-sim"]
+script_runner = "@shell"
+script = '''
+set -euo pipefail
+
+STAGING="target/framework-staging"
+rm -rf "${STAGING}"
+
+for PLATFORM_TUPLE in \
+    "macos:aarch64-apple-darwin" \
+    "ios:aarch64-apple-ios" \
+    "ios-sim:aarch64-apple-ios-sim"
+do
+    PLATFORM="${PLATFORM_TUPLE%%:*}"
+    TARGET="${PLATFORM_TUPLE##*:}"
+    DEST="${STAGING}/${PLATFORM}/JamTrack.framework"
+
+    mkdir -p "${DEST}/Headers" "${DEST}/Modules"
+    cp "${FRAMEWORK_TEMPLATE}/Headers/jamtrack_api.h"    "${DEST}/Headers/"
+    cp "${FRAMEWORK_TEMPLATE}/Headers/JamTrack.h"        "${DEST}/Headers/"
+    cp "${FRAMEWORK_TEMPLATE}/Modules/module.modulemap"  "${DEST}/Modules/"
+    cp "${FRAMEWORK_TEMPLATE}/Info.plist"                 "${DEST}/"
+    cp "../target/${TARGET}/release/libjamtrack_rs.a"     "${DEST}/JamTrack"
+
+    echo "Stripping local symbols: ${DEST}/JamTrack"
+    strip -x "${DEST}/JamTrack"
+done
+
+echo "Frameworks staged under ${STAGING}"
+'''
+
+# ---------------------------------------------------------------------------
+# xcframework
+# ---------------------------------------------------------------------------
+
+[tasks.build-xcframework]
+category = "jtrackers"
+description = "Create JamTrack.xcframework for SwiftPM"
+dependencies = ["stage-framework"]
+script_runner = "@shell"
+script = '''
+set -euo pipefail
+
+STAGING="target/framework-staging"
+OUTPUT="${XCFRAMEWORK_OUTPUT}"
+
+rm -rf "${OUTPUT}"
+
+DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" \
+xcodebuild -create-xcframework \
+    -framework "${STAGING}/macos/JamTrack.framework" \
+    -framework "${STAGING}/ios/JamTrack.framework" \
+    -framework "${STAGING}/ios-sim/JamTrack.framework" \
+    -output "${OUTPUT}"
+
+echo "xcframework created at ${OUTPUT}"
+
+ZIP="${OUTPUT}.zip"
+rm -f "${ZIP}"
+echo "Zipping xcframework..."
+(cd "$(dirname "${OUTPUT}")" && zip -q -r -9 "$(basename "${ZIP}")" "$(basename "${OUTPUT}")")
+
+SIZE=$(du -h "${ZIP}" | cut -f1)
+echo "xcframework zipped: ${ZIP} (${SIZE})"
+'''
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+[tasks.test-rust]
+category = "jtrackers"
+description = "Run Rust tests (including FFI)"
+command = "cargo"
+args = ["test", "--features", "ffi", "--manifest-path", "../Cargo.toml"]
+
+[tasks.test-swift]
+category = "jtrackers"
+description = "Run Swift package tests"
+dependencies = ["build-xcframework"]
+script_runner = "@shell"
+script = '''
+set -euo pipefail
+cd JTrackers
+if command -v xcbeautify >/dev/null 2>&1; then
+    swift test 2>&1 | xcbeautify
+else
+    swift test
+fi
+'''
+
+[tasks.test]
+clear = true
+category = "jtrackers"
+description = "Run all tests"
+dependencies = ["test-rust", "test-swift"]
+
+# ---------------------------------------------------------------------------
+# Deploy
+# ---------------------------------------------------------------------------
+
+[tasks.deploy-check-version]
+category = "jtrackers"
+description = "Validate VERSION environment variable"
+script_runner = "@shell"
+script = '''
+set -euo pipefail
+
+RED="\033[1;31m"
+RESET="\033[0m"
+
+if [[ -z "${VERSION:-}" ]]; then
+    printf "${RED}ERROR:${RESET} VERSION is not set. Usage: VERSION=vX.Y.Z cargo make deploy\n"
+    exit 1
+fi
+
+if ! [[ "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    printf "${RED}ERROR:${RESET} Invalid version format. Use vX.Y.Z (e.g. v0.4.0)\n"
+    exit 1
+fi
+
+echo "VERSION=${VERSION}"
+'''
+
+[tasks.deploy]
+category = "jtrackers"
+description = "Deploy the Swift package to the JTrackers repository"
+dependencies = ["deploy-check-version", "clean", "build-xcframework"]
+script_runner = "@shell"
+script = '''
+set -euo pipefail
+
+# --- Prepare workspace ---
+if [[ -d "workspace" ]]; then
+    rm -rf workspace
+fi
+mkdir -p workspace
+
+echo "Deploying ${VERSION} to ${JTRACKERS_REPO_URL}..."
+
+(
+    SOURCE_DIR="../../JTrackers"
+    cd workspace
+    git clone --depth 1 --filter=blob:none "${JTRACKERS_REPO_URL}"
+    cd JTrackers
+
+    # --- Replace package contents ---
+    rm -rf Sources Tests Package.swift Artifacts
+    cp -r "${SOURCE_DIR}/Sources" ./
+    cp -r "${SOURCE_DIR}/Tests" ./
+    cp "${SOURCE_DIR}/Package.swift" ./Package.swift
+    mkdir -p ./Artifacts
+    cp "${SOURCE_DIR}/Artifacts/JamTrack.xcframework.zip" ./Artifacts/
+
+    # --- Commit, tag, and push ---
+    git add -A
+    git commit -m "${VERSION}"
+    git tag -a "${VERSION}" -m "${VERSION}" || echo "Tag ${VERSION} may already exist, continuing..."
+    echo "Pushing to remote..."
+    git push --progress 2>&1
+    git push --tags --progress 2>&1
+)
+
+echo "Deployed ${VERSION} successfully"
+rm -rf workspace
+'''
+
+# ---------------------------------------------------------------------------
+# Documentation
+# ---------------------------------------------------------------------------
+
+[tasks.doc-build-symbols]
+category = "jtrackers"
+description = "Build Swift symbol graphs for documentation"
+dependencies = ["build-xcframework"]
+script_runner = "@shell"
+script = '''
+set -euo pipefail
+cd JTrackers
+
+SYMBOL_DIR="$(pwd)/.build/symbol-graphs"
+mkdir -p "${SYMBOL_DIR}"
+
+swift build --target JTrackers \
+    -Xswiftc -emit-symbol-graph \
+    -Xswiftc -emit-symbol-graph-dir \
+    -Xswiftc "${SYMBOL_DIR}"
+'''
+
+[tasks.doc]
+category = "jtrackers"
+description = "Generate DocC HTML documentation for local preview"
+dependencies = ["doc-build-symbols"]
+script_runner = "@shell"
+script = '''
+set -euo pipefail
+cd JTrackers
+
+rm -rf docs
+xcrun docc convert \
+    Sources/JTrackers/JTrackers.docc \
+    --additional-symbol-graph-dir .build/symbol-graphs \
+    --output-path docs \
+    --transform-for-static-hosting \
+    --hosting-base-path ""
+
+echo "Documentation generated at JTrackers/docs/"
+echo "Run 'cargo make doc-preview' to view in browser."
+'''
+
+[tasks.doc-preview]
+category = "jtrackers"
+description = "Preview DocC documentation in browser (http://localhost:8000)"
+dependencies = ["doc"]
+script_runner = "@shell"
+script = '''
+set -euo pipefail
+echo "Serving documentation at http://localhost:8000/documentation/jtrackers"
+echo "Press Ctrl+C to stop."
+python3 -m http.server 8000 --directory JTrackers/docs
+'''
+
+[tasks.doc-deploy]
+category = "jtrackers"
+description = "Deploy DocC documentation to GitHub Pages (gh-pages branch)"
+dependencies = ["doc-build-symbols"]
+script_runner = "@shell"
+script = '''
+set -euo pipefail
+
+REPO_NAME="JTrackers"
+
+cd JTrackers
+
+rm -rf docs
+xcrun docc convert \
+    Sources/JTrackers/JTrackers.docc \
+    --additional-symbol-graph-dir .build/symbol-graphs \
+    --output-path docs \
+    --transform-for-static-hosting \
+    --hosting-base-path "${REPO_NAME}"
+
+cd docs
+git init
+git checkout -b gh-pages
+git add -A
+git commit -m "Deploy DocC documentation"
+git remote add origin "${JTRACKERS_REPO_URL}"
+git push -f origin gh-pages
+
+echo ""
+echo "Deployed to GitHub Pages."
+echo "Enable GitHub Pages in repository settings:"
+echo "  Settings > Pages > Source: Deploy from a branch > gh-pages / (root)"
+echo ""
+echo "URL: https://kadu-v.github.io/${REPO_NAME}/documentation/jtrackers"
+'''
+
+# ---------------------------------------------------------------------------
+# Clean
+# ---------------------------------------------------------------------------
+
+[tasks.clean]
+clear = true
+category = "jtrackers"
+description = "Remove build artifacts"
+script_runner = "@shell"
+script = '''
+set -euo pipefail
+cargo clean --manifest-path ../Cargo.toml
+rm -rf target/framework-staging
+rm -rf JTrackers/Artifacts
+rm -rf JTrackers/docs
+if [[ -d "workspace" ]]; then
+    rm -rf workspace
+fi
+'''

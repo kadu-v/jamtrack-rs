@@ -5,8 +5,16 @@ edition = "2024"
 authors = ["kadu-v (Kazuki Ikemori)"]
 description = "ByteTrack implementation in Rust"
 license = "MIT"
+exclude = ["swift/"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["rlib", "staticlib"]
+
+[features]
+default = []
+ffi = []
 
 [[bench]]
 name = "bytetrack_benchmark"

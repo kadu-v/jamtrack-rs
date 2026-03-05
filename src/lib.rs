@@ -7,6 +7,9 @@ pub mod rect;
 
 mod lapjv;
 
+#[cfg(feature = "ffi")]
+pub mod ffi;
+
 pub use boost_tracker::BoostTracker;
 pub use byte_tracker::ByteTracker;
 pub use error::TrackError;
