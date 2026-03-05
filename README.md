@@ -4,6 +4,8 @@
     <img src="./data/logo/jam.jpeg" width="200">
 </p>
 
+[![Swift Package CI/CD](https://github.com/kadu-v/jamtrack-rs/actions/workflows/swift.yml/badge.svg)](https://github.com/kadu-v/jamtrack-rs/actions/workflows/swift.yml)
+
 JamTrack-rs is a Rust crate that provides multi-object tracking algorithms including [ByteTrack](https://arxiv.org/abs/2110.06864), [BoostTrack](https://arxiv.org/abs/2408.13003), and [OC-SORT](https://arxiv.org/abs/2203.14360).
 
 ## Features
@@ -53,11 +55,29 @@ Videos use [NHK Creative Library](https://www2.nhk.or.jp/archives/movies/?id=D00
 
 ## Installation
 
+### Rust
+
 Add the following to your `Cargo.toml`:
 
-```
+```toml
 [dependencies]
 jamtrack-rs = { git = "https://github.com/kadu-v/jamtrack-rs.git" }
+```
+
+### Swift (via Swift Package Manager)
+
+The Swift package is distributed as [JTrackers](https://github.com/kadu-v/JTrackers). Add it in Xcode via **File > Add Package Dependencies** with the URL:
+
+```
+https://github.com/kadu-v/JTrackers.git
+```
+
+Or add it to your `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/kadu-v/JTrackers.git", from: "0.4.0"),
+]
 ```
 
 ## Usage
