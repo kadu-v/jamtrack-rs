@@ -45,6 +45,42 @@ jobs:
           retention-days: 5
 
   # ---------------------------------------------------------------------------
+  # Deploy DocC to GitHub Pages
+  # ---------------------------------------------------------------------------
+  docs:
+    name: Deploy DocC
+    needs: test
+    runs-on: macos-15
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Install cargo-make
+        run: brew install cargo-make
+
+      - name: Configure SSH for deploy
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.JTRACKERS_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${DEPLOY_SSH_KEY}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy DocC to GitHub Pages
+        working-directory: swift
+        env:
+          GIT_SSH_COMMAND: "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no"
+        run: cargo make doc-deploy
+
+  # ---------------------------------------------------------------------------
   # Deploy (tag push or manual trigger only)
   # ---------------------------------------------------------------------------
   deploy:
