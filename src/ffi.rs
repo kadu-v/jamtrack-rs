@@ -2,7 +2,7 @@ use std::panic::catch_unwind;
 
 use crate::object::Object;
 use crate::rect::Rect;
-use crate::{BoostTracker, ByteTracker, OCSort};
+use crate::{BoostTracker, BotSort, ByteTracker, OCSort, TrackError};
 
 // ---------------------------------------------------------------------------
 // Status codes
@@ -64,7 +64,10 @@ fn object_to_cobject(src: &Object) -> CObject {
     }
 }
 
-fn slice_from_raw<'a>(ptr: *const CObject, len: usize) -> Result<&'a [CObject], i32> {
+fn slice_from_raw<'a>(
+    ptr: *const CObject,
+    len: usize,
+) -> Result<&'a [CObject], i32> {
     if len == 0 {
         return Ok(&[]);
     }
@@ -88,6 +91,42 @@ fn write_object_array(out: *mut CObjectArray, items: Vec<CObject>) -> i32 {
         (*out)._priv = priv_ptr;
     }
     STATUS_OK
+}
+
+fn track_error_to_status(err: TrackError) -> i32 {
+    match err {
+        TrackError::InvalidArgument(_) => STATUS_INVALID_ARGUMENT,
+        _ => STATUS_INTERNAL_ERROR,
+    }
+}
+
+fn features_from_raw(
+    ptr: *const f32,
+    object_count: usize,
+    feature_dim: usize,
+) -> Result<Vec<Vec<f32>>, i32> {
+    if object_count == 0 {
+        return Ok(Vec::new());
+    }
+    if feature_dim == 0 {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    if ptr.is_null() {
+        return Err(STATUS_NULL_POINTER);
+    }
+
+    let total = object_count
+        .checked_mul(feature_dim)
+        .ok_or(STATUS_INVALID_ARGUMENT)?;
+    let flat = unsafe { std::slice::from_raw_parts(ptr, total) };
+    if flat.iter().any(|v| !v.is_finite()) {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+
+    Ok(flat
+        .chunks_exact(feature_dim)
+        .map(|chunk| chunk.to_vec())
+        .collect())
 }
 
 fn free_object_array_inner(array: &mut CObjectArray) {
@@ -175,10 +214,12 @@ pub unsafe extern "C" fn jamtrack_byte_tracker_update(
             Ok(s) => s,
             Err(code) => return code,
         };
-        let input: Vec<Object> = c_slice.iter().map(cobject_to_object).collect();
+        let input: Vec<Object> =
+            c_slice.iter().map(cobject_to_object).collect();
         match tracker.update(&input) {
             Ok(results) => {
-                let c_results: Vec<CObject> = results.iter().map(object_to_cobject).collect();
+                let c_results: Vec<CObject> =
+                    results.iter().map(object_to_cobject).collect();
                 write_object_array(out_array, c_results)
             }
             Err(_) => STATUS_INTERNAL_ERROR,
@@ -192,7 +233,9 @@ pub unsafe extern "C" fn jamtrack_byte_tracker_update(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn jamtrack_byte_tracker_drop(handle: *mut core::ffi::c_void) {
+pub unsafe extern "C" fn jamtrack_byte_tracker_drop(
+    handle: *mut core::ffi::c_void,
+) {
     if handle.is_null() {
         return;
     }
@@ -268,10 +311,12 @@ pub unsafe extern "C" fn jamtrack_oc_sort_update(
             Ok(s) => s,
             Err(code) => return code,
         };
-        let input: Vec<Object> = c_slice.iter().map(cobject_to_object).collect();
+        let input: Vec<Object> =
+            c_slice.iter().map(cobject_to_object).collect();
         match tracker.update(&input) {
             Ok(results) => {
-                let c_results: Vec<CObject> = results.iter().map(object_to_cobject).collect();
+                let c_results: Vec<CObject> =
+                    results.iter().map(object_to_cobject).collect();
                 write_object_array(out_array, c_results)
             }
             Err(_) => STATUS_INTERNAL_ERROR,
@@ -306,7 +351,8 @@ pub unsafe extern "C" fn jamtrack_boost_tracker_create(
     min_hits: usize,
 ) -> *mut core::ffi::c_void {
     let result = catch_unwind(|| {
-        let tracker = BoostTracker::new(det_thresh, iou_threshold, max_age, min_hits);
+        let tracker =
+            BoostTracker::new(det_thresh, iou_threshold, max_age, min_hits);
         Box::into_raw(Box::new(tracker)) as *mut core::ffi::c_void
     });
     match result {
@@ -331,9 +377,10 @@ pub unsafe extern "C" fn jamtrack_boost_tracker_create_with_config(
     use_shape_similarity_v1: bool,
 ) -> *mut core::ffi::c_void {
     let result = catch_unwind(|| {
-        let mut tracker = BoostTracker::new(det_thresh, iou_threshold, max_age, min_hits)
-            .with_lambdas(lambda_iou, lambda_mhd, lambda_shape)
-            .with_boost(use_dlo_boost, use_duo_boost);
+        let mut tracker =
+            BoostTracker::new(det_thresh, iou_threshold, max_age, min_hits)
+                .with_lambdas(lambda_iou, lambda_mhd, lambda_shape)
+                .with_boost(use_dlo_boost, use_duo_boost);
 
         if enable_boost_plus_plus {
             tracker = tracker.with_boost_plus_plus();
@@ -353,8 +400,16 @@ pub unsafe extern "C" fn jamtrack_boost_tracker_create_with_config(
     }
 }
 
-ffi_accessor!(jamtrack_boost_tracker_frame_count, BoostTracker, frame_count);
-ffi_accessor!(jamtrack_boost_tracker_tracker_count, BoostTracker, tracker_count);
+ffi_accessor!(
+    jamtrack_boost_tracker_frame_count,
+    BoostTracker,
+    frame_count
+);
+ffi_accessor!(
+    jamtrack_boost_tracker_tracker_count,
+    BoostTracker,
+    tracker_count
+);
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn jamtrack_boost_tracker_update(
@@ -376,10 +431,12 @@ pub unsafe extern "C" fn jamtrack_boost_tracker_update(
             Ok(s) => s,
             Err(code) => return code,
         };
-        let input: Vec<Object> = c_slice.iter().map(cobject_to_object).collect();
+        let input: Vec<Object> =
+            c_slice.iter().map(cobject_to_object).collect();
         match tracker.update(&input) {
             Ok(results) => {
-                let c_results: Vec<CObject> = results.iter().map(object_to_cobject).collect();
+                let c_results: Vec<CObject> =
+                    results.iter().map(object_to_cobject).collect();
                 write_object_array(out_array, c_results)
             }
             Err(_) => STATUS_INTERNAL_ERROR,
@@ -393,12 +450,183 @@ pub unsafe extern "C" fn jamtrack_boost_tracker_update(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn jamtrack_boost_tracker_drop(handle: *mut core::ffi::c_void) {
+pub unsafe extern "C" fn jamtrack_boost_tracker_drop(
+    handle: *mut core::ffi::c_void,
+) {
     if handle.is_null() {
         return;
     }
     let _ = catch_unwind(std::panic::AssertUnwindSafe(|| {
         let _ = unsafe { Box::from_raw(handle as *mut BoostTracker) };
+    }));
+}
+
+// ---------------------------------------------------------------------------
+// BotSort FFI
+// ---------------------------------------------------------------------------
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn jamtrack_bot_sort_create(
+    frame_rate: usize,
+    track_buffer: usize,
+    track_high_thresh: f32,
+    track_low_thresh: f32,
+    new_track_thresh: f32,
+    match_thresh: f32,
+) -> *mut core::ffi::c_void {
+    let result = catch_unwind(|| {
+        let tracker = BotSort::new(
+            frame_rate,
+            track_buffer,
+            track_high_thresh,
+            track_low_thresh,
+            new_track_thresh,
+            match_thresh,
+        );
+        Box::into_raw(Box::new(tracker)) as *mut core::ffi::c_void
+    });
+    match result {
+        Ok(ptr) => ptr,
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn jamtrack_bot_sort_create_with_config(
+    frame_rate: usize,
+    track_buffer: usize,
+    track_high_thresh: f32,
+    track_low_thresh: f32,
+    new_track_thresh: f32,
+    match_thresh: f32,
+    use_reid: bool,
+    proximity_thresh: f32,
+    appearance_thresh: f32,
+    mot20: bool,
+    use_ecc: bool,
+) -> *mut core::ffi::c_void {
+    let result = catch_unwind(|| {
+        let mut tracker = BotSort::new(
+            frame_rate,
+            track_buffer,
+            track_high_thresh,
+            track_low_thresh,
+            new_track_thresh,
+            match_thresh,
+        )
+        .with_reid(use_reid)
+        .with_proximity_thresh(proximity_thresh)
+        .with_appearance_thresh(appearance_thresh)
+        .with_mot20(mot20);
+
+        if use_ecc {
+            tracker = tracker.with_ecc();
+        }
+
+        Box::into_raw(Box::new(tracker)) as *mut core::ffi::c_void
+    });
+    match result {
+        Ok(ptr) => ptr,
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+ffi_accessor!(jamtrack_bot_sort_frame_count, BotSort, frame_count);
+ffi_accessor!(jamtrack_bot_sort_tracker_count, BotSort, tracker_count);
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn jamtrack_bot_sort_update(
+    handle: *mut core::ffi::c_void,
+    objects: *const CObject,
+    length: usize,
+    out_array: *mut CObjectArray,
+) -> i32 {
+    if handle.is_null() {
+        return STATUS_NULL_POINTER;
+    }
+    if out_array.is_null() {
+        return STATUS_NULL_POINTER;
+    }
+
+    let result = catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let tracker = unsafe { &mut *(handle as *mut BotSort) };
+        let c_slice = match slice_from_raw(objects, length) {
+            Ok(s) => s,
+            Err(code) => return code,
+        };
+        let input: Vec<Object> =
+            c_slice.iter().map(cobject_to_object).collect();
+        match tracker.update(&input) {
+            Ok(results) => {
+                let c_results: Vec<CObject> =
+                    results.iter().map(object_to_cobject).collect();
+                write_object_array(out_array, c_results)
+            }
+            Err(err) => track_error_to_status(err),
+        }
+    }));
+
+    match result {
+        Ok(code) => code,
+        Err(_) => STATUS_INTERNAL_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn jamtrack_bot_sort_update_with_features(
+    handle: *mut core::ffi::c_void,
+    objects: *const CObject,
+    length: usize,
+    features: *const f32,
+    feature_dim: usize,
+    out_array: *mut CObjectArray,
+) -> i32 {
+    if handle.is_null() {
+        return STATUS_NULL_POINTER;
+    }
+    if out_array.is_null() {
+        return STATUS_NULL_POINTER;
+    }
+
+    let result = catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let tracker = unsafe { &mut *(handle as *mut BotSort) };
+        let c_slice = match slice_from_raw(objects, length) {
+            Ok(s) => s,
+            Err(code) => return code,
+        };
+        let input: Vec<Object> =
+            c_slice.iter().map(cobject_to_object).collect();
+        let feature_rows =
+            match features_from_raw(features, length, feature_dim) {
+                Ok(features) => features,
+                Err(code) => return code,
+            };
+
+        match tracker.update_with_features(&input, &feature_rows) {
+            Ok(results) => {
+                let c_results: Vec<CObject> =
+                    results.iter().map(object_to_cobject).collect();
+                write_object_array(out_array, c_results)
+            }
+            Err(err) => track_error_to_status(err),
+        }
+    }));
+
+    match result {
+        Ok(code) => code,
+        Err(_) => STATUS_INTERNAL_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn jamtrack_bot_sort_drop(
+    handle: *mut core::ffi::c_void,
+) {
+    if handle.is_null() {
+        return;
+    }
+    let _ = catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _ = unsafe { Box::from_raw(handle as *mut BotSort) };
     }));
 }
 
@@ -493,8 +721,12 @@ mod tests {
                 _priv: std::ptr::null_mut(),
             };
 
-            let status =
-                jamtrack_byte_tracker_update(handle, objects.as_ptr(), objects.len(), &mut out);
+            let status = jamtrack_byte_tracker_update(
+                handle,
+                objects.as_ptr(),
+                objects.len(),
+                &mut out,
+            );
             assert_eq!(status, STATUS_OK);
             assert!(out.length > 0);
 
@@ -512,9 +744,7 @@ mod tests {
             let handle = jamtrack_oc_sort_create(0.5);
             assert!(!handle.is_null());
 
-            let objects = [
-                make_test_cobject(10.0, 20.0, 100.0, 200.0, 0.9),
-            ];
+            let objects = [make_test_cobject(10.0, 20.0, 100.0, 200.0, 0.9)];
 
             let mut out = CObjectArray {
                 data: std::ptr::null(),
@@ -522,8 +752,12 @@ mod tests {
                 _priv: std::ptr::null_mut(),
             };
 
-            let status =
-                jamtrack_oc_sort_update(handle, objects.as_ptr(), objects.len(), &mut out);
+            let status = jamtrack_oc_sort_update(
+                handle,
+                objects.as_ptr(),
+                objects.len(),
+                &mut out,
+            );
             assert_eq!(status, STATUS_OK);
 
             jamtrack_object_array_drop(&mut out);
@@ -537,9 +771,7 @@ mod tests {
             let handle = jamtrack_boost_tracker_create(0.5, 0.3, 30, 3);
             assert!(!handle.is_null());
 
-            let objects = [
-                make_test_cobject(10.0, 20.0, 100.0, 200.0, 0.9),
-            ];
+            let objects = [make_test_cobject(10.0, 20.0, 100.0, 200.0, 0.9)];
 
             let mut out = CObjectArray {
                 data: std::ptr::null(),
@@ -561,6 +793,67 @@ mod tests {
     }
 
     #[test]
+    fn test_bot_sort_create_update_drop() {
+        unsafe {
+            let handle = jamtrack_bot_sort_create(30, 30, 0.6, 0.1, 0.7, 0.8);
+            assert!(!handle.is_null());
+
+            let objects = [make_test_cobject(10.0, 20.0, 100.0, 200.0, 0.9)];
+
+            let mut out = CObjectArray {
+                data: std::ptr::null(),
+                length: 0,
+                _priv: std::ptr::null_mut(),
+            };
+
+            let status = jamtrack_bot_sort_update(
+                handle,
+                objects.as_ptr(),
+                objects.len(),
+                &mut out,
+            );
+            assert_eq!(status, STATUS_OK);
+            assert_eq!(out.length, 1);
+
+            jamtrack_object_array_drop(&mut out);
+            jamtrack_bot_sort_drop(handle);
+        }
+    }
+
+    #[test]
+    fn test_bot_sort_update_with_features() {
+        unsafe {
+            let handle = jamtrack_bot_sort_create_with_config(
+                30, 30, 0.6, 0.1, 0.7, 0.8, true, 0.5, 0.25, false, false,
+            );
+            assert!(!handle.is_null());
+
+            let objects = [make_test_cobject(10.0, 20.0, 100.0, 200.0, 0.9)];
+            let features = [1.0f32, 0.0f32];
+
+            let mut out = CObjectArray {
+                data: std::ptr::null(),
+                length: 0,
+                _priv: std::ptr::null_mut(),
+            };
+
+            let status = jamtrack_bot_sort_update_with_features(
+                handle,
+                objects.as_ptr(),
+                objects.len(),
+                features.as_ptr(),
+                2,
+                &mut out,
+            );
+            assert_eq!(status, STATUS_OK);
+            assert_eq!(out.length, 1);
+
+            jamtrack_object_array_drop(&mut out);
+            jamtrack_bot_sort_drop(handle);
+        }
+    }
+
+    #[test]
     fn test_empty_input() {
         unsafe {
             let handle = jamtrack_byte_tracker_create(30, 30, 0.5, 0.6, 0.8);
@@ -573,8 +866,12 @@ mod tests {
             };
 
             // length == 0, objects == null should be fine
-            let status =
-                jamtrack_byte_tracker_update(handle, std::ptr::null(), 0, &mut out);
+            let status = jamtrack_byte_tracker_update(
+                handle,
+                std::ptr::null(),
+                0,
+                &mut out,
+            );
             assert_eq!(status, STATUS_OK);
             assert_eq!(out.length, 0);
 
@@ -659,8 +956,9 @@ mod tests {
     #[test]
     fn test_oc_sort_create_with_config() {
         unsafe {
-            let handle =
-                jamtrack_oc_sort_create_with_config(0.6, 20, 2, 0.4, 5, 0.3, true);
+            let handle = jamtrack_oc_sort_create_with_config(
+                0.6, 20, 2, 0.4, 5, 0.3, true,
+            );
             assert!(!handle.is_null());
             jamtrack_oc_sort_drop(handle);
         }
@@ -709,8 +1007,12 @@ mod tests {
                 _priv: std::ptr::null_mut(),
             };
 
-            let status =
-                jamtrack_oc_sort_update(handle, objects.as_ptr(), objects.len(), &mut out);
+            let status = jamtrack_oc_sort_update(
+                handle,
+                objects.as_ptr(),
+                objects.len(),
+                &mut out,
+            );
             assert_eq!(status, STATUS_OK);
             jamtrack_object_array_drop(&mut out);
 
@@ -737,7 +1039,10 @@ mod tests {
                 STATUS_NULL_POINTER
             );
             assert_eq!(
-                jamtrack_oc_sort_tracker_count(std::ptr::null_mut(), &mut value),
+                jamtrack_oc_sort_tracker_count(
+                    std::ptr::null_mut(),
+                    &mut value
+                ),
                 STATUS_NULL_POINTER
             );
         }
@@ -770,7 +1075,8 @@ mod tests {
     fn test_boost_tracker_create_with_config() {
         unsafe {
             let handle = jamtrack_boost_tracker_create_with_config(
-                0.5, 0.3, 30, 3, 0.5, 0.25, 0.25, true, true, false, false, false,
+                0.5, 0.3, 30, 3, 0.5, 0.25, 0.25, true, true, false, false,
+                false,
             );
             assert!(!handle.is_null());
             jamtrack_boost_tracker_drop(handle);
@@ -781,7 +1087,8 @@ mod tests {
     fn test_boost_tracker_create_with_boost_plus() {
         unsafe {
             let handle = jamtrack_boost_tracker_create_with_config(
-                0.5, 0.3, 30, 3, 0.5, 0.25, 0.25, true, true, true, false, false,
+                0.5, 0.3, 30, 3, 0.5, 0.25, 0.25, true, true, true, false,
+                false,
             );
             assert!(!handle.is_null());
             jamtrack_boost_tracker_drop(handle);
@@ -799,7 +1106,10 @@ mod tests {
 
             // Verify ++ mode is active (soft_boost + varying_threshold)
             let tracker = &*(handle as *const BoostTracker);
-            assert!(tracker.uses_soft_boost(), "plus_plus should enable soft_boost");
+            assert!(
+                tracker.uses_soft_boost(),
+                "plus_plus should enable soft_boost"
+            );
             assert!(
                 tracker.uses_varying_threshold(),
                 "plus_plus should enable varying_threshold"
@@ -814,12 +1124,16 @@ mod tests {
         unsafe {
             // Only plus true — should NOT enable soft_boost / varying_threshold
             let handle = jamtrack_boost_tracker_create_with_config(
-                0.5, 0.3, 30, 3, 0.5, 0.25, 0.25, true, true, true, false, false,
+                0.5, 0.3, 30, 3, 0.5, 0.25, 0.25, true, true, true, false,
+                false,
             );
             assert!(!handle.is_null());
 
             let tracker = &*(handle as *const BoostTracker);
-            assert!(!tracker.uses_soft_boost(), "plus should not enable soft_boost");
+            assert!(
+                !tracker.uses_soft_boost(),
+                "plus should not enable soft_boost"
+            );
             assert!(
                 !tracker.uses_varying_threshold(),
                 "plus should not enable varying_threshold"
@@ -851,7 +1165,8 @@ mod tests {
             assert!(!handle.is_null());
 
             let mut value: usize = 999;
-            let status = jamtrack_boost_tracker_tracker_count(handle, &mut value);
+            let status =
+                jamtrack_boost_tracker_tracker_count(handle, &mut value);
             assert_eq!(status, STATUS_OK);
             assert_eq!(value, 0);
 
@@ -900,11 +1215,17 @@ mod tests {
         unsafe {
             let mut value: usize = 0;
             assert_eq!(
-                jamtrack_boost_tracker_frame_count(std::ptr::null_mut(), &mut value),
+                jamtrack_boost_tracker_frame_count(
+                    std::ptr::null_mut(),
+                    &mut value
+                ),
                 STATUS_NULL_POINTER
             );
             assert_eq!(
-                jamtrack_boost_tracker_tracker_count(std::ptr::null_mut(), &mut value),
+                jamtrack_boost_tracker_tracker_count(
+                    std::ptr::null_mut(),
+                    &mut value
+                ),
                 STATUS_NULL_POINTER
             );
         }
@@ -917,11 +1238,17 @@ mod tests {
             assert!(!handle.is_null());
 
             assert_eq!(
-                jamtrack_boost_tracker_frame_count(handle, std::ptr::null_mut()),
+                jamtrack_boost_tracker_frame_count(
+                    handle,
+                    std::ptr::null_mut()
+                ),
                 STATUS_NULL_POINTER
             );
             assert_eq!(
-                jamtrack_boost_tracker_tracker_count(handle, std::ptr::null_mut()),
+                jamtrack_boost_tracker_tracker_count(
+                    handle,
+                    std::ptr::null_mut()
+                ),
                 STATUS_NULL_POINTER
             );
 

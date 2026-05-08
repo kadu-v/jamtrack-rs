@@ -16,4 +16,6 @@ pub enum TrackError {
     ExecLapjvError(String),
     #[error("Error: {0}")]
     ByteTrackerError(String),
+    #[error("Invalid argument: {0}")]
+    InvalidArgument(String),
 }

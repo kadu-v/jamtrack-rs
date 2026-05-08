@@ -33,7 +33,7 @@ harness = false
 thiserror = "1.0.66"
 nalgebra = "0.33.2"
 num = "0.4.3"
-image = { version = "0.25.2", default-features = false }
+image = { version = "0.25.2", default-features = false, features = ["jpeg", "png"] }
 
 
 [dev-dependencies]
