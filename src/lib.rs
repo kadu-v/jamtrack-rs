@@ -1,4 +1,5 @@
 pub mod boost_tracker;
+pub mod bot_sort_tracker;
 pub mod byte_tracker;
 pub mod error;
 pub mod object;
@@ -11,6 +12,7 @@ mod lapjv;
 pub mod ffi;
 
 pub use boost_tracker::BoostTracker;
+pub use bot_sort_tracker::BotSort;
 pub use byte_tracker::ByteTracker;
 pub use error::TrackError;
 pub use object::Object;

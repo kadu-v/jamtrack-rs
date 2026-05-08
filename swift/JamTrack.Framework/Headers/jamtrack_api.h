@@ -125,6 +125,54 @@ int32_t jamtrack_boost_tracker_tracker_count(void *handle, size_t *out_value);
 void jamtrack_boost_tracker_drop(void *handle);
 
 /* -----------------------------------------------------------------------
+ * BotSort
+ * ----------------------------------------------------------------------- */
+
+void *jamtrack_bot_sort_create(
+    size_t frame_rate,
+    size_t track_buffer,
+    float track_high_thresh,
+    float track_low_thresh,
+    float new_track_thresh,
+    float match_thresh
+);
+
+void *jamtrack_bot_sort_create_with_config(
+    size_t frame_rate,
+    size_t track_buffer,
+    float track_high_thresh,
+    float track_low_thresh,
+    float new_track_thresh,
+    float match_thresh,
+    bool use_reid,
+    float proximity_thresh,
+    float appearance_thresh,
+    bool mot20,
+    bool use_ecc
+);
+
+int32_t jamtrack_bot_sort_update(
+    void *handle,
+    const CObject *objects,
+    size_t length,
+    CObjectArray *out_array
+);
+
+int32_t jamtrack_bot_sort_update_with_features(
+    void *handle,
+    const CObject *objects,
+    size_t length,
+    const float *features,
+    size_t feature_dim,
+    CObjectArray *out_array
+);
+
+int32_t jamtrack_bot_sort_frame_count(void *handle, size_t *out_value);
+int32_t jamtrack_bot_sort_tracker_count(void *handle, size_t *out_value);
+
+void jamtrack_bot_sort_drop(void *handle);
+
+/* -----------------------------------------------------------------------
  * Shared
  * ----------------------------------------------------------------------- */
 

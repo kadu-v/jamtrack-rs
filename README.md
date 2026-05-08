@@ -6,11 +6,12 @@
 
 [![Swift Package CI/CD](https://github.com/kadu-v/jamtrack-rs/actions/workflows/swift.yml/badge.svg)](https://github.com/kadu-v/jamtrack-rs/actions/workflows/swift.yml)
 
-JamTrack-rs is a Rust crate that provides multi-object tracking algorithms including [ByteTrack](https://arxiv.org/abs/2110.06864), [BoostTrack](https://arxiv.org/abs/2408.13003), and [OC-SORT](https://arxiv.org/abs/2203.14360).
+JamTrack-rs is a Rust crate that provides multi-object tracking algorithms including [ByteTrack](https://arxiv.org/abs/2110.06864), [BoT-SORT](https://arxiv.org/abs/2206.14651), [BoostTrack](https://arxiv.org/abs/2408.13003), and [OC-SORT](https://arxiv.org/abs/2203.14360).
 
 ## Features
 
 - **ByteTracker**: Simple and efficient tracking using IoU-based association
+- **BotSort**: BoT-SORT tracking with BYTE-style association, `xywh` Kalman filter, optional ECC camera compensation, and optional external ReID embeddings
 - **BoostTracker**: Advanced tracking with confidence boosting techniques
   - **BoostTrack**: Basic DLO/DUO confidence boost
   - **BoostTrack+**: Rich similarity (Mahalanobis distance + shape + soft BIoU)
@@ -31,6 +32,12 @@ JamTrack-rs is a Rust crate that provides multi-object tracking algorithms inclu
 
 <div align="center">
     <video controls src="https://github.com/user-attachments/assets/dc135e90-4296-408e-8309-bfd921c06700" muted="false" width="500"></video>
+</div>
+
+### BoT-SORT
+
+<div align="center">
+    <video controls src="./data/video/bot_sort.mp4" muted="false" width="500"></video>
 </div>
 
 ### BoostTracker
@@ -130,6 +137,43 @@ for track in tracks {
 }
 ```
 
+### BoT-SORT
+
+```rust
+use jamtrack_rs::bot_sort_tracker::BotSort;
+use jamtrack_rs::object::Object;
+use jamtrack_rs::rect::Rect;
+
+let mut tracker = BotSort::new(30, 30, 0.6, 0.1, 0.7, 0.8);
+let detections = vec![
+    Object::new(Rect::new(100.0, 100.0, 50.0, 80.0), 0.9, None),
+];
+
+let tracks = tracker.update(&detections).unwrap();
+```
+
+BoT-SORT can also run ECC camera motion compensation when the caller provides grayscale frames:
+
+```rust
+use image::GrayImage;
+
+let mut tracker = BotSort::new(30, 30, 0.6, 0.1, 0.7, 0.8)
+    .with_ecc();
+let frame = GrayImage::new(640, 480);
+
+let tracks = tracker.update_with_frame(&detections, &frame).unwrap();
+```
+
+BoT-SORT ReID matching is optional and expects embeddings from the caller:
+
+```rust
+let mut tracker = BotSort::new(30, 30, 0.6, 0.1, 0.7, 0.8)
+    .with_reid(true);
+let features = vec![vec![1.0, 0.0, 0.0]];
+
+let tracks = tracker.update_with_features(&detections, &features).unwrap();
+```
+
 ### BoostTracker+ / BoostTracker++
 
 ```rust
@@ -219,9 +263,11 @@ Evaluation results on MOT17 train set using YOLOX-X detector:
 
 | Tracker | HOTA | MOTA | IDF1 | IDSW |
 |---------|------|------|------|------|
-| **OfficialBoostTrack++ECC (Python)** | **69.71** | 79.92 | **79.82** | **287** |
+| **BotSortECC (Rust)** | **70.94** | **82.11** | **80.83** | 347 |
+| OfficialBoostTrack++ECC (Python) | 69.71 | 79.92 | 79.82 | **287** |
 | OfficialBoostTrackECC (Python) | 69.28 | 79.17 | 79.10 | 308 |
-| **ByteTrackerTuned (Rust)** | 68.55 | **80.95** | 78.27 | 450 |
+| BotSort (Rust) | 68.97 | 81.26 | 77.68 | 784 |
+| ByteTrackerTuned (Rust) | 68.55 | 80.95 | 78.27 | 450 |
 | BoostTrack++ECC (Rust) | 68.35 | 79.80 | 77.98 | 318 |
 | BoostTrackECC (Rust) | 68.39 | 79.06 | 77.94 | 344 |
 | ByteTracker (Rust) | 68.35 | 80.97 | 77.89 | 454 |
@@ -236,7 +282,8 @@ Evaluation results on MOT17 train set using YOLOX-X detector:
 
 > [!NOTE]
 > - ECC variants show significant improvement in HOTA/IDF1/IDSW due to camera motion compensation
-> - Rust BoostTrack supports ECC; embedding (Re-ID features) is still not implemented
+> - Rust BoostTrack and BoT-SORT support ECC camera motion compensation
+> - BoT-SORT ReID matching is implemented, but the MOT17 benchmark above uses the non-ReID path for fair comparison with non-embedding tracker variants
 > - MOTA is determined by the core algorithm, so Rust and Python versions achieve nearly identical values
 > - *Tuned* variants use optimized hyperparameters of a tracker for MOT17 dataset
 
@@ -256,30 +303,34 @@ cargo run --example example_boost_tracker
 cargo run --example example_boost_tracker_modes basic
 cargo run --example example_boost_tracker_modes plus
 cargo run --example example_boost_tracker_modes plusplus
+
+# BoT-SORT
+cargo run --example example_bot_sort
 ```
 
 ## Tracker Comparison
 
-| Feature | ByteTracker | BoostTrack | BoostTrack+ | BoostTrack++ | OC-SORT |
-|---------|-------------|------------|-------------|--------------|---------|
-| IoU Association | Yes | Yes | Yes | Yes | Yes |
-| Mahalanobis Distance | No | Yes | Yes | Yes | No |
-| Shape Similarity | No | No | Yes | Yes | No |
-| DLO Confidence Boost | No | Yes | Yes | Yes | No |
-| DUO Confidence Boost | No | Yes | Yes | Yes | No |
-| Rich Similarity | No | No | Yes | Yes | No |
-| Soft Boost | No | No | No | Yes | No |
-| Varying Threshold | No | No | No | Yes | No |
-| VDC (Velocity Direction Consistency) | No | No | No | No | Yes |
-| OCR (Re-association) | No | No | No | No | Yes |
-| Online Smoothing (Freeze/Unfreeze) | No | No | No | No | Yes |
-| BYTE Association | Yes | No | No | No | Yes |
-| Embedding (Re-ID) | No | No | No | No | No |
-| ECC (Camera Motion Compensation) | No | Yes | Yes | Yes | No |
+| Feature | ByteTracker | BoT-SORT | BoostTrack | BoostTrack+ | BoostTrack++ | OC-SORT |
+|---------|-------------|----------|------------|-------------|--------------|---------|
+| IoU Association | Yes | Yes | Yes | Yes | Yes | Yes |
+| Mahalanobis Distance | No | No | Yes | Yes | Yes | No |
+| Shape Similarity | No | No | No | Yes | Yes | No |
+| DLO Confidence Boost | No | No | Yes | Yes | Yes | No |
+| DUO Confidence Boost | No | No | Yes | Yes | Yes | No |
+| Rich Similarity | No | No | No | Yes | Yes | No |
+| Soft Boost | No | No | No | No | Yes | No |
+| Varying Threshold | No | No | No | No | Yes | No |
+| VDC (Velocity Direction Consistency) | No | No | No | No | No | Yes |
+| OCR (Re-association) | No | No | No | No | No | Yes |
+| Online Smoothing (Freeze/Unfreeze) | No | No | No | No | No | Yes |
+| BYTE Association | Yes | Yes | No | No | No | Yes |
+| Embedding (Re-ID) | No | Optional | No | No | No | No |
+| ECC (Camera Motion Compensation) | No | Yes | Yes | Yes | Yes | No |
 
 ## References
 
 - [ByteTrack: Multi-Object Tracking by Associating Every Detection Box](https://arxiv.org/abs/2110.06864)
+- [BoT-SORT: Robust Associations Multi-Pedestrian Tracking](https://arxiv.org/abs/2206.14651)
 - [BoostTrack: Boosting the Similarity Measure and Detection Confidence for Improved Multiple Object Tracking](https://arxiv.org/abs/2408.13003)
 - [OC-SORT: Observation-Centric SORT on video Multi-Object Tracking](https://arxiv.org/abs/2203.14360)
 
