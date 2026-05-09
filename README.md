@@ -22,43 +22,12 @@ JamTrack-rs is a Rust crate that provides multi-object tracking algorithms inclu
   - OCR (Observation-Centric Re-association) with last observation
   - Kalman filter freeze/unfreeze for online smoothing
 
-## Demo Videos
+## Demo
 
-
-
-
-
-### ByteTracker
 
 <div align="center">
-    <video controls src="https://github.com/user-attachments/assets/dc135e90-4296-408e-8309-bfd921c06700" muted="false" width="500"></video>
+    <video controls src="https://github.com/user-attachments/assets/0cd32cd9-75e6-4540-9933-926c4264a43f" muted="false" width="500"></video>
 </div>
-
-### BoT-SORT
-
-<div align="center">
-    <video controls src="./data/video/bot_sort.mp4" muted="false" width="500"></video>
-</div>
-
-### BoostTracker
-
-<div align="center">
-    <video controls src="https://github.com/user-attachments/assets/a3c9c252-cb32-4944-8820-fe981588b90e" muted="false" width="500"></video>
-</div>
-
-### BoostTracker+
-
-<div align="center">
-    <video controls src="https://github.com/user-attachments/assets/6e05a5ec-337c-4aa9-9202-f635acf56050" muted="false" width="500"></video>
-</div>
-
-### BoostTracker++
-
-<div align="center">
-    <video controls src="https://github.com/user-attachments/assets/e5c93888-b0b7-42cd-af87-b22dfbe063fe" muted="false" width="500"></video>
-</div>
-
-Videos use [NHK Creative Library](https://www2.nhk.or.jp/archives/movies/?id=D0002011239_00000) as the source with YoloX-X as the detector.
 
 ## Installation
 
