@@ -201,14 +201,9 @@ Tested on M3 MacBook Pro with 1627 frames from detection_results.json.
 
 ### Performance
 
-| Tracker | Time | Relative |
-|---------|------|----------|
-| OC-SORT | **33.2 ms** | 1.00x (fastest) |
-| OC-SORT + BYTE | 56.8 ms | 1.71x |
-| BoostTrack | 63.4 ms | 1.91x |
-| BoostTrack++ | 77.9 ms | 2.35x |
-| ByteTracker | 80.9 ms | 2.44x |
-| BoostTrack+ | 84.1 ms | 2.53x |
+<div align="center">
+    <img src="./data/charts/performance.png" width="600">
+</div>
 
 ### Why is BoostTrack++ faster than BoostTrack+?
 
@@ -232,24 +227,12 @@ cargo bench
 
 Evaluation results on MOT17 train set using YOLOX-X detector:
 
-| Tracker | HOTA | MOTA | IDF1 | IDSW |
-|---------|------|------|------|------|
-| **BotSortECC (Rust)** | **70.94** | **82.11** | **80.83** | 347 |
-| OfficialBoostTrack++ECC (Python) | 69.71 | 79.92 | 79.82 | **287** |
-| OfficialBoostTrackECC (Python) | 69.28 | 79.17 | 79.10 | 308 |
-| BotSort (Rust) | 68.97 | 81.26 | 77.68 | 784 |
-| ByteTrackerTuned (Rust) | 68.55 | 80.95 | 78.27 | 450 |
-| BoostTrack++ECC (Rust) | 68.35 | 79.80 | 77.98 | 318 |
-| BoostTrackECC (Rust) | 68.39 | 79.06 | 77.94 | 344 |
-| ByteTracker (Rust) | 68.35 | 80.97 | 77.89 | 454 |
-| OfficialByteTrackerTuned (Python) | 67.92 | 80.90 | 77.47 | 453 |
-| OfficialBoostTrack++ (Python) | 67.87 | 78.89 | 76.91 | 515 |
-| OfficialByteTracker (Python) | 67.82 | 80.92 | 77.29 | 458 |
-| OCSortTracker (Rust) | 67.73 | 78.55 | 76.67 | 484 |
-| OfficialBoostTrack (Python) | 67.30 | 78.26 | 76.00 | 520 |
-| BoostTrack++ (Rust) | 66.02 | 78.86 | 74.29 | 558 |
-| BoostTrack (Rust) | 66.03 | 78.24 | 74.13 | 536 |
-| BoostTrack+ (Rust) | 65.93 | 78.57 | 74.11 | 560 |
+<div align="center">
+    <img src="./data/charts/mot17_hota.png" width="700">
+    <img src="./data/charts/mot17_mota.png" width="700">
+    <img src="./data/charts/mot17_idf1.png" width="700">
+    <img src="./data/charts/mot17_idsw.png" width="700">
+</div>
 
 > [!NOTE]
 > - ECC variants show significant improvement in HOTA/IDF1/IDSW due to camera motion compensation
