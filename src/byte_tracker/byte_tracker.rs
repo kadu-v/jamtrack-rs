@@ -248,11 +248,15 @@ impl ByteTracker {
         self.lost_stracks =
             Self::sub_stracks(&joint_stracks, &self.removed_stracks);
 
-        // calculate the number of removed objects
-        self.removed_stracks = Self::joint_stracks(
-            &self.removed_stracks,
-            &current_removed_stracks,
-        );
+        // Keep only the tracks removed on this frame. `removed_stracks` is used
+        // solely to drop just-removed tracks from `lost_stracks` above. Because
+        // track ids are monotonic and a removed track is already absent from
+        // `tracked_stracks` and `lost_stracks`, it can never reappear, so
+        // retaining the full history is unnecessary. Accumulating it made
+        // `update()` clone an ever-growing vector on every frame, which leaked
+        // memory and made the per-frame cost grow with the total number of
+        // tracks ever seen on long-running streams.
+        self.removed_stracks = current_removed_stracks;
 
         let (tracked_stracks_out, lost_stracks_out) = self
             .remove_duplicate_stracks(
@@ -919,5 +923,72 @@ mod tests {
             opt.is_ok()
         }
         quickcheck::quickcheck(prop as fn(usize) -> bool);
+    }
+
+    #[test]
+    fn test_removed_stracks_is_bounded_over_time() {
+        // Regression test for unbounded `removed_stracks` growth.
+        //
+        // Previously every frame folded newly-removed tracks into a permanent
+        // `removed_stracks` vector and cloned the whole thing on the next
+        // `update()`, so a long-running stream leaked memory and the per-frame
+        // cost grew with the total number of tracks ever seen. After the fix
+        // `removed_stracks` only holds tracks removed on the current frame, so
+        // its length stays bounded regardless of how long the stream runs.
+        let mut tracker = ByteTracker::new(30, 1, 0.5, 0.6, 0.8);
+
+        // A persistent object that must keep a single stable track id for the
+        // whole run: this guards against the fix breaking association.
+        let persistent =
+            Object::new(Rect::new(10.0, 10.0, 20.0, 20.0), 0.9, None);
+        let mut persistent_id: Option<usize> = None;
+
+        let frames = 400;
+        for frame in 0..frames {
+            let mut objects = vec![persistent.clone()];
+
+            // A short-lived object at a new location every few frames. Each one
+            // becomes its own track and is eventually removed, which is exactly
+            // what used to accumulate in `removed_stracks` forever.
+            if frame % 3 == 0 {
+                let x = 200.0 + (frame % 40) as f32 * 5.0;
+                objects.push(Object::new(
+                    Rect::new(x, 200.0, 20.0, 20.0),
+                    0.9,
+                    None,
+                ));
+            }
+
+            let tracked = tracker.update(&objects).unwrap();
+
+            if let Some(obj) = tracked
+                .iter()
+                .find(|o| (o.get_rect().x() - 10.0).abs() < 5.0)
+            {
+                if let Some(id) = obj.get_track_id() {
+                    match persistent_id {
+                        Some(expected) => assert_eq!(
+                            id, expected,
+                            "persistent object changed track id at frame {frame}"
+                        ),
+                        None => persistent_id = Some(id),
+                    }
+                }
+            }
+
+            // The retained removed set may only hold tracks removed on the
+            // current frame, never the full history.
+            assert!(
+                tracker.removed_stracks.len() <= 4,
+                "removed_stracks grew to {} by frame {} (should stay bounded)",
+                tracker.removed_stracks.len(),
+                frame
+            );
+        }
+
+        assert!(
+            persistent_id.is_some(),
+            "persistent object was never assigned a track id"
+        );
     }
 }
