@@ -11,6 +11,7 @@ assigns persistent track identifiers across frames.
 ### Supported Algorithms
 
 - ``ByteTracker`` — ByteTrack: two-stage matching using high and low-confidence detections.
+- ``FastTracker`` — Occlusion-aware matching with optional road-region constraints.
 - ``BoostTracker`` — BoostTrack: IoU + Mahalanobis distance + shape similarity with optional BoostTrack+/++ modes.
 - ``OCSort`` — OC-SORT: observation-centric online smoothing with velocity direction consistency.
 
@@ -38,10 +39,13 @@ case .failure(let error):
 ### Trackers
 
 - ``ByteTracker``
+- ``FastTracker``
 - ``BoostTracker``
 - ``OCSort``
 
 ### Data Types
 
 - ``TrackedObject``
+- ``FastTrackerPoint``
+- ``FastTrackerRoi``
 - ``JamTrackError``

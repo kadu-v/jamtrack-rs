@@ -2,7 +2,10 @@ use std::panic::catch_unwind;
 
 use crate::object::Object;
 use crate::rect::Rect;
-use crate::{BoostTracker, BotSort, ByteTracker, OCSort, TrackError};
+use crate::{
+    BoostTracker, BotSort, ByteTracker, FastTracker, FastTrackerRoi, OCSort,
+    TrackError,
+};
 
 // ---------------------------------------------------------------------------
 // Status codes
@@ -34,6 +37,22 @@ pub struct CObjectArray {
     pub data: *const CObject,
     pub length: usize,
     pub _priv: *mut core::ffi::c_void,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct CFastTrackerPoint {
+    pub x: f32,
+    pub y: f32,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct CFastTrackerRoi {
+    pub e1: CFastTrackerPoint,
+    pub e2: CFastTrackerPoint,
+    pub o2: CFastTrackerPoint,
+    pub o1: CFastTrackerPoint,
 }
 
 // ---------------------------------------------------------------------------
@@ -127,6 +146,31 @@ fn features_from_raw(
         .chunks_exact(feature_dim)
         .map(|chunk| chunk.to_vec())
         .collect())
+}
+
+fn fast_tracker_rois_from_raw(
+    ptr: *const CFastTrackerRoi,
+    len: usize,
+) -> Result<Vec<FastTrackerRoi>, i32> {
+    if len == 0 {
+        return Ok(Vec::new());
+    }
+    if ptr.is_null() {
+        return Err(STATUS_NULL_POINTER);
+    }
+    let rois = unsafe { std::slice::from_raw_parts(ptr, len) };
+    let mut result = Vec::with_capacity(rois.len());
+    for roi in rois {
+        let points = [roi.e1, roi.e2, roi.o2, roi.o1];
+        if points
+            .iter()
+            .any(|point| !point.x.is_finite() || !point.y.is_finite())
+        {
+            return Err(STATUS_INVALID_ARGUMENT);
+        }
+        result.push(FastTrackerRoi::new(points.map(|point| [point.x, point.y])));
+    }
+    Ok(result)
 }
 
 fn free_object_array_inner(array: &mut CObjectArray) {
@@ -458,6 +502,124 @@ pub unsafe extern "C" fn jamtrack_boost_tracker_drop(
     }
     let _ = catch_unwind(std::panic::AssertUnwindSafe(|| {
         let _ = unsafe { Box::from_raw(handle as *mut BoostTracker) };
+    }));
+}
+
+// ---------------------------------------------------------------------------
+// FastTracker FFI
+// ---------------------------------------------------------------------------
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn jamtrack_fast_tracker_create(
+    frame_rate: usize,
+    track_buffer: usize,
+    track_thresh: f32,
+    match_thresh: f32,
+) -> *mut core::ffi::c_void {
+    let result = catch_unwind(|| {
+        let tracker = FastTracker::new(
+            frame_rate,
+            track_buffer,
+            track_thresh,
+            match_thresh,
+        );
+        Box::into_raw(Box::new(tracker)) as *mut core::ffi::c_void
+    });
+    result.unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn jamtrack_fast_tracker_create_with_config(
+    frame_rate: usize,
+    track_buffer: usize,
+    track_thresh: f32,
+    match_thresh: f32,
+    reset_velocity_offset: usize,
+    reset_position_offset: usize,
+    enlarge_bbox: f32,
+    dampen_motion: f32,
+    active_occlusion_to_lost: usize,
+    init_iou_suppression: f32,
+    rois: *const CFastTrackerRoi,
+    roi_count: usize,
+    roi_repair_max_gap: usize,
+    direction_window: usize,
+    direction_margin_degrees: f32,
+    mot20: bool,
+) -> *mut core::ffi::c_void {
+    let result = catch_unwind(|| {
+        let rois = match fast_tracker_rois_from_raw(rois, roi_count) {
+            Ok(rois) => rois,
+            Err(_) => return std::ptr::null_mut(),
+        };
+        let tracker = FastTracker::new(
+            frame_rate,
+            track_buffer,
+            track_thresh,
+            match_thresh,
+        )
+        .with_occlusion(
+            reset_velocity_offset,
+            reset_position_offset,
+            enlarge_bbox,
+            dampen_motion,
+            active_occlusion_to_lost,
+        )
+        .with_init_iou_suppression(init_iou_suppression)
+        .with_rois(
+            rois,
+            roi_repair_max_gap,
+            direction_window,
+            direction_margin_degrees,
+        )
+        .with_mot20(mot20);
+        Box::into_raw(Box::new(tracker)) as *mut core::ffi::c_void
+    });
+    result.unwrap_or(std::ptr::null_mut())
+}
+
+ffi_accessor!(jamtrack_fast_tracker_frame_count, FastTracker, frame_count);
+ffi_accessor!(jamtrack_fast_tracker_tracker_count, FastTracker, tracker_count);
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn jamtrack_fast_tracker_update(
+    handle: *mut core::ffi::c_void,
+    objects: *const CObject,
+    length: usize,
+    out_array: *mut CObjectArray,
+) -> i32 {
+    if handle.is_null() || out_array.is_null() {
+        return STATUS_NULL_POINTER;
+    }
+    let result = catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let tracker = unsafe { &mut *(handle as *mut FastTracker) };
+        let input = match slice_from_raw(objects, length) {
+            Ok(objects) => objects
+                .iter()
+                .map(cobject_to_object)
+                .collect::<Vec<_>>(),
+            Err(code) => return code,
+        };
+        match tracker.update(&input) {
+            Ok(results) => write_object_array(
+                out_array,
+                results.iter().map(object_to_cobject).collect(),
+            ),
+            Err(error) => track_error_to_status(error),
+        }
+    }));
+    result.unwrap_or(STATUS_INTERNAL_ERROR)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn jamtrack_fast_tracker_drop(
+    handle: *mut core::ffi::c_void,
+) {
+    if handle.is_null() {
+        return;
+    }
+    let _ = catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _ = unsafe { Box::from_raw(handle as *mut FastTracker) };
     }));
 }
 
@@ -1253,6 +1415,101 @@ mod tests {
             );
 
             jamtrack_boost_tracker_drop(handle);
+        }
+    }
+
+    #[test]
+    fn test_fast_tracker_create_update_accessors_drop() {
+        unsafe {
+            let handle = jamtrack_fast_tracker_create(30, 30, 0.6, 0.8);
+            assert!(!handle.is_null());
+            let objects = [make_test_cobject(10.0, 20.0, 30.0, 40.0, 0.9)];
+            let mut out = CObjectArray {
+                data: std::ptr::null(),
+                length: 0,
+                _priv: std::ptr::null_mut(),
+            };
+            assert_eq!(
+                jamtrack_fast_tracker_update(
+                    handle,
+                    objects.as_ptr(),
+                    objects.len(),
+                    &mut out,
+                ),
+                STATUS_OK
+            );
+            assert_eq!(out.length, 1);
+            jamtrack_object_array_drop(&mut out);
+            let mut frame_count = 0;
+            let mut tracker_count = 0;
+            assert_eq!(
+                jamtrack_fast_tracker_frame_count(handle, &mut frame_count),
+                STATUS_OK
+            );
+            assert_eq!(
+                jamtrack_fast_tracker_tracker_count(handle, &mut tracker_count),
+                STATUS_OK
+            );
+            assert_eq!(frame_count, 1);
+            assert_eq!(tracker_count, 1);
+            jamtrack_fast_tracker_drop(handle);
+        }
+    }
+
+    #[test]
+    fn test_fast_tracker_create_with_roi_copies_input() {
+        unsafe {
+            let rois = [CFastTrackerRoi {
+                e1: CFastTrackerPoint { x: 0.0, y: 0.0 },
+                e2: CFastTrackerPoint { x: 0.0, y: 100.0 },
+                o2: CFastTrackerPoint { x: 200.0, y: 100.0 },
+                o1: CFastTrackerPoint { x: 200.0, y: 0.0 },
+            }];
+            let handle = jamtrack_fast_tracker_create_with_config(
+                30,
+                30,
+                0.6,
+                0.8,
+                5,
+                3,
+                1.2,
+                0.85,
+                15,
+                0.8,
+                rois.as_ptr(),
+                rois.len(),
+                15,
+                10,
+                2.0,
+                false,
+            );
+            assert!(!handle.is_null());
+            jamtrack_fast_tracker_drop(handle);
+        }
+    }
+
+    #[test]
+    fn test_fast_tracker_rejects_null_roi_buffer() {
+        unsafe {
+            let handle = jamtrack_fast_tracker_create_with_config(
+                30,
+                30,
+                0.6,
+                0.8,
+                5,
+                3,
+                1.2,
+                0.85,
+                15,
+                0.8,
+                std::ptr::null(),
+                1,
+                15,
+                10,
+                2.0,
+                false,
+            );
+            assert!(handle.is_null());
         }
     }
 }

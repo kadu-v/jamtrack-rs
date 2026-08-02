@@ -7,10 +7,10 @@ matplotlib.rcParams['font.family'] = 'sans-serif'
 OUTPUT_DIR = "data/charts"
 
 # --- Performance chart ---
-trackers_perf = ["BoostTrack+", "ByteTracker", "BoostTrack++", "BoostTrack", "OC-SORT + BYTE", "OC-SORT"]
-times = [84.1, 80.9, 77.9, 63.4, 56.8, 33.2]
+trackers_perf = ["FastTracker", "BoostTrack+", "ByteTracker", "BoostTrack++", "BoostTrack", "OC-SORT + BYTE", "OC-SORT"]
+times = [144.3, 84.1, 80.9, 77.9, 63.4, 56.8, 33.2]
 
-fig, ax = plt.subplots(figsize=(8, 3.5))
+fig, ax = plt.subplots(figsize=(8, 4.0))
 colors = ["#4C72B0"] * len(trackers_perf)
 colors[-1] = "#2CA02C"
 bars = ax.barh(trackers_perf, times, color=colors, edgecolor="white", height=0.6)
@@ -29,6 +29,8 @@ plt.close()
 
 # --- MOT17 Benchmark data ---
 trackers_mot = [
+    "FastTracker (Rust)",
+    "OfficialFastTracker (Python)",
     "BoostTrack+ (Rust)",
     "BoostTrack (Rust)",
     "BoostTrack++ (Rust)",
@@ -48,10 +50,10 @@ trackers_mot = [
 ]
 
 metrics = {
-    "HOTA": [65.93, 66.03, 66.02, 67.30, 67.73, 67.82, 67.87, 67.92, 68.35, 68.39, 68.35, 68.55, 68.97, 69.28, 69.71, 70.94],
-    "MOTA": [78.57, 78.24, 78.86, 78.26, 78.55, 80.92, 78.89, 80.90, 80.97, 79.06, 79.80, 80.95, 81.26, 79.17, 79.92, 82.11],
-    "IDF1": [74.11, 74.13, 74.29, 76.00, 76.67, 77.29, 76.91, 77.47, 77.89, 77.94, 77.98, 78.27, 77.68, 79.10, 79.82, 80.83],
-    "IDSW": [560, 536, 558, 520, 484, 458, 515, 453, 454, 344, 318, 450, 784, 308, 287, 347],
+    "HOTA": [64.563, 64.563, 65.93, 66.03, 66.02, 67.30, 67.73, 67.82, 67.87, 67.92, 68.35, 68.39, 68.35, 68.55, 68.97, 69.28, 69.71, 70.94],
+    "MOTA": [74.258, 74.258, 78.57, 78.24, 78.86, 78.26, 78.55, 80.92, 78.89, 80.90, 80.97, 79.06, 79.80, 80.95, 81.26, 79.17, 79.92, 82.11],
+    "IDF1": [72.438, 72.438, 74.11, 74.13, 74.29, 76.00, 76.67, 77.29, 76.91, 77.47, 77.89, 77.94, 77.98, 78.27, 77.68, 79.10, 79.82, 80.83],
+    "IDSW": [1171, 1171, 560, 536, 558, 520, 484, 458, 515, 453, 454, 344, 318, 450, 784, 308, 287, 347],
 }
 
 best_tracker = {
@@ -70,7 +72,7 @@ def make_mot_chart(metric, values, filename):
     names = [p[0] for p in sorted_pairs]
     vals = [p[1] for p in sorted_pairs]
 
-    fig, ax = plt.subplots(figsize=(10, 7))
+    fig, ax = plt.subplots(figsize=(10, 8))
     colors_mot = [COLOR_PYTHON if "Python" in t else COLOR_RUST for t in names]
 
     bars = ax.barh(names, vals, color=colors_mot, edgecolor="white", height=0.65)

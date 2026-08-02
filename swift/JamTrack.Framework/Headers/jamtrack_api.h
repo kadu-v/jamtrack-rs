@@ -37,6 +37,18 @@ typedef struct {
     void *_priv;        /* internal – do not touch */
 } CObjectArray;
 
+typedef struct {
+    float x;
+    float y;
+} CFastTrackerPoint;
+
+typedef struct {
+    CFastTrackerPoint e1;
+    CFastTrackerPoint e2;
+    CFastTrackerPoint o2;
+    CFastTrackerPoint o1;
+} CFastTrackerRoi;
+
 /* -----------------------------------------------------------------------
  * ByteTracker
  * ----------------------------------------------------------------------- */
@@ -123,6 +135,48 @@ int32_t jamtrack_boost_tracker_frame_count(void *handle, size_t *out_value);
 int32_t jamtrack_boost_tracker_tracker_count(void *handle, size_t *out_value);
 
 void jamtrack_boost_tracker_drop(void *handle);
+
+/* -----------------------------------------------------------------------
+ * FastTracker
+ * ----------------------------------------------------------------------- */
+
+void *jamtrack_fast_tracker_create(
+    size_t frame_rate,
+    size_t track_buffer,
+    float track_thresh,
+    float match_thresh
+);
+
+void *jamtrack_fast_tracker_create_with_config(
+    size_t frame_rate,
+    size_t track_buffer,
+    float track_thresh,
+    float match_thresh,
+    size_t reset_velocity_offset,
+    size_t reset_position_offset,
+    float enlarge_bbox,
+    float dampen_motion,
+    size_t active_occlusion_to_lost,
+    float init_iou_suppression,
+    const CFastTrackerRoi *rois,
+    size_t roi_count,
+    size_t roi_repair_max_gap,
+    size_t direction_window,
+    float direction_margin_degrees,
+    bool mot20
+);
+
+int32_t jamtrack_fast_tracker_update(
+    void *handle,
+    const CObject *objects,
+    size_t length,
+    CObjectArray *out_array
+);
+
+int32_t jamtrack_fast_tracker_frame_count(void *handle, size_t *out_value);
+int32_t jamtrack_fast_tracker_tracker_count(void *handle, size_t *out_value);
+
+void jamtrack_fast_tracker_drop(void *handle);
 
 /* -----------------------------------------------------------------------
  * BotSort
