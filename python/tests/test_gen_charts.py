@@ -5,7 +5,6 @@ from scripts.gen_charts import (
     collect_performance_results,
     load_tracker_files,
     pareto_frontier,
-    performance_label_levels,
     selected_mot_labels,
     variant_group,
 )
@@ -67,11 +66,6 @@ class ParetoFrontierTests(unittest.TestCase):
 
 
 class ChartDataTests(unittest.TestCase):
-    def test_performance_labels_use_separate_levels_for_nearby_values(self):
-        levels = performance_label_levels([77.9, 80.9, 84.1])
-
-        self.assertEqual(len(set(levels)), 3)
-
     def test_variant_groups(self):
         self.assertEqual(variant_group("default"), "Default")
         self.assertEqual(variant_group("tuned"), "Tuned")

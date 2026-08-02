@@ -277,7 +277,7 @@ Tested on M3 MacBook Pro with 1627 frames from detection_results.json.
 
 ### Performance
 
-Lower is better. Each dot is the time required to process all 1627 frames.
+Lower is better. Each bar is the time required to process all 1627 frames.
 
 <div align="center">
     <img src="./data/charts/performance.png" width="800">

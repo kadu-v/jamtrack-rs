@@ -177,89 +177,42 @@ def selected_mot_labels(results):
     }
 
 
-def performance_label_levels(times, level_count=4):
-    if not times:
-        return []
-    value_range = max(times) - min(times)
-    minimum_spacing = max(value_range * 0.08, 7.0)
-    levels = [0.2 + index * 0.2 for index in range(level_count)]
-    last_value_at_level = [float("-inf")] * level_count
-    assigned_levels = []
-    for value in times:
-        available_level = next(
-            (
-                index
-                for index, previous in enumerate(last_value_at_level)
-                if value - previous >= minimum_spacing
-            ),
-            None,
-        )
-        if available_level is None:
-            available_level = min(
-                range(level_count), key=lambda index: last_value_at_level[index]
-            )
-        last_value_at_level[available_level] = value
-        assigned_levels.append(levels[available_level])
-    return assigned_levels
-
-
 def make_performance_chart(results, context):
     device, frames, unit, _ = context
     results = sorted(results, key=lambda result: result["elapsed_ms"])
+    labels = [result["label"] for result in results]
     times = [result["elapsed_ms"] for result in results]
-    minimum = min(times)
-    value_range = max(times) - minimum
-    padding = max(value_range * 0.08, 5.0)
-    label_levels = performance_label_levels(times)
+    colors = [
+        COLOR_HIGHLIGHT if result.get("highlight") else COLOR_PERFORMANCE
+        for result in results
+    ]
 
-    fig, ax = plt.subplots(figsize=(10, 4.3))
-    ax.axhline(0, color="#B8B8B8", linewidth=1.2, zorder=1)
-    for result, label_level in zip(results, label_levels):
-        elapsed_ms = result["elapsed_ms"]
-        highlighted = result.get("highlight", False)
-        color = COLOR_HIGHLIGHT if highlighted else COLOR_PERFORMANCE
-        ax.scatter(
-            elapsed_ms,
-            0,
-            color=color,
-            edgecolor="white",
-            linewidth=0.8,
-            s=90,
-            zorder=3,
-        )
-        ax.plot(
-            [elapsed_ms, elapsed_ms],
-            [0.04, label_level - 0.025],
-            color="#AAAAAA",
-            linewidth=0.7,
-            zorder=2,
-        )
+    fig, ax = plt.subplots(figsize=(10, 5.2))
+    bars = ax.bar(labels, times, color=colors, edgecolor="white", width=0.68)
+    for bar, elapsed_ms in zip(bars, times):
         ax.text(
-            elapsed_ms,
-            label_level,
-            f"{result['label']}\n{elapsed_ms:g} {unit}",
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + max(times) * 0.018,
+            f"{elapsed_ms:g} {unit}",
             ha="center",
             va="bottom",
             fontsize=9,
-            color="#222222",
         )
 
-    ax.set_xlim(minimum - padding, max(times) + padding)
-    ax.set_ylim(-0.18, 1.05)
-    ax.set_yticks([])
-    ax.set_xlabel(f"Elapsed time ({unit}) — lower is better", fontsize=11)
-    fig.suptitle(
+    ax.set_ylim(0, max(times) * 1.14)
+    ax.set_ylabel(f"Elapsed time ({unit}) — lower is better", fontsize=11)
+    ax.set_title(
         f"Performance ({device}, {frames} frames)",
         fontsize=13,
         fontweight="bold",
-        y=0.96,
     )
-    ax.grid(axis="x", color="#DDDDDD", linewidth=0.8, alpha=0.8)
-    for side in ("left", "right", "top"):
-        ax.spines[side].set_visible(False)
-    ax.spines["bottom"].set_color("#999999")
-    fig.subplots_adjust(top=0.78, bottom=0.2, left=0.05, right=0.98)
-    fig.savefig(OUTPUT_DIR / "performance.png", dpi=150)
+    ax.grid(axis="y", color="#DDDDDD", linewidth=0.8, alpha=0.8)
+    ax.set_axisbelow(True)
+    ax.tick_params(axis="x", labelrotation=20)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    fig.tight_layout()
+    fig.savefig(OUTPUT_DIR / "performance.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
 
 
