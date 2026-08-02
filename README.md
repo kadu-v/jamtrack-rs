@@ -28,19 +28,14 @@ JamTrack-rs is a Rust crate that provides multi-object tracking algorithms inclu
 
 ## Demo
 
-### FastTracker
-
 <div align="center">
-    <video controls src="https://github.com/user-attachments/assets/ea93c710-0e47-4e06-a026-83d37d6532f7" poster="./data/charts/fasttracker_demo.jpg" muted="false" width="640"></video>
-    <br>
-    <a href="https://github.com/user-attachments/assets/ea93c710-0e47-4e06-a026-83d37d6532f7">Play the FastTracker demo</a>
+    <video controls src="https://github.com/user-attachments/assets/0cd32cd9-75e6-4540-9933-926c4264a43f" muted="false" width="500"></video>
 </div>
 
-The demo uses YOLOX-X detections and the standard FastTracker constructor with
-no RoI constraints. The source footage is from the
-[NHK Creative Library](https://www2.nhk.or.jp/archives/movies/?id=D0002011239_00000).
+**Individual tracker demos:** [ByteTracker](https://github.com/user-attachments/assets/dc135e90-4296-408e-8309-bfd921c06700) | [FastTracker](https://github.com/user-attachments/assets/ea93c710-0e47-4e06-a026-83d37d6532f7) | [BoT-SORT](https://github.com/user-attachments/assets/3b4ec6ed-8c74-49f5-9488-5d453c768c66) | [BoostTracker](https://github.com/user-attachments/assets/a3c9c252-cb32-4944-8820-fe981588b90e) | [BoostTracker+](https://github.com/user-attachments/assets/6e05a5ec-337c-4aa9-9202-f635acf56050) | [BoostTracker++](https://github.com/user-attachments/assets/e5c93888-b0b7-42cd-af87-b22dfbe063fe)
 
-**Individual tracker demos:** [ByteTracker](https://github.com/user-attachments/assets/dc135e90-4296-408e-8309-bfd921c06700) | [BoT-SORT](https://github.com/user-attachments/assets/3b4ec6ed-8c74-49f5-9488-5d453c768c66) | [BoostTracker](https://github.com/user-attachments/assets/a3c9c252-cb32-4944-8820-fe981588b90e) | [BoostTracker+](https://github.com/user-attachments/assets/6e05a5ec-337c-4aa9-9202-f635acf56050) | [BoostTracker++](https://github.com/user-attachments/assets/e5c93888-b0b7-42cd-af87-b22dfbe063fe)
+Videos use YOLOX-X detections and footage from the
+[NHK Creative Library](https://www2.nhk.or.jp/archives/movies/?id=D0002011239_00000).
 
 ## Installation
 
