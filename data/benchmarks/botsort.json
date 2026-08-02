@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "tracker": "BoT-SORT",
+  "mot17_train": {
+    "detector": "YOLOX-X",
+    "evaluator": "TrackEval",
+    "results": [
+      {
+        "label": "BotSort (Rust)",
+        "implementation": "rust",
+        "variant": "default",
+        "reid": false,
+        "metrics": {
+          "hota": 68.97,
+          "mota": 81.26,
+          "idf1": 77.68,
+          "idsw": 784
+        }
+      },
+      {
+        "label": "BotSortECC (Rust)",
+        "implementation": "rust",
+        "variant": "ecc",
+        "reid": false,
+        "metrics": {
+          "hota": 70.94,
+          "mota": 82.11,
+          "idf1": 80.83,
+          "idsw": 347
+        }
+      }
+    ]
+  },
+  "notes": [
+    "The MOT17 results use the non-ReID path."
+  ]
+}

@@ -301,6 +301,14 @@ Fewer tracks = smaller similarity matrices = faster downstream computation.
 cargo bench
 ```
 
+The values used by the charts are stored by tracker family in
+[`data/benchmarks`](./data/benchmarks). After updating those JSON files,
+regenerate every benchmark chart with:
+
+```bash
+uv run --project python python scripts/gen_charts.py
+```
+
 ### MOT17-train Benchmark (YOLOX-X Detector)
 
 Evaluation results on MOT17 train set using YOLOX-X detector:
