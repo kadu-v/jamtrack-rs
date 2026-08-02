@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "tracker": "FastTracker",
+  "performance": {
+    "device": "M3 MacBook Pro",
+    "frames": 1627,
+    "unit": "ms",
+    "input": "data/jsons/detection_results.json",
+    "results": [
+      {
+        "label": "FastTracker",
+        "implementation": "rust",
+        "variant": "default",
+        "elapsed_ms": 144.3
+      }
+    ]
+  },
+  "mot17_train": {
+    "detector": "YOLOX-X",
+    "evaluator": "TrackEval",
+    "results": [
+      {
+        "label": "FastTracker (Rust)",
+        "chart_label": "FastTracker",
+        "implementation": "rust",
+        "variant": "default",
+        "config": {
+          "track_thresh": 0.6,
+          "track_buffer": 30,
+          "match_thresh": 0.7,
+          "rois": []
+        },
+        "metrics": {
+          "hota": 64.563,
+          "mota": 74.258,
+          "idf1": 72.438,
+          "idsw": 1171
+        }
+      },
+      {
+        "label": "OfficialFastTracker (Python)",
+        "chart_label": "FastTracker (Py)",
+        "implementation": "python",
+        "official": true,
+        "variant": "default",
+        "config": {
+          "track_thresh": 0.6,
+          "track_buffer": 30,
+          "match_thresh": 0.7,
+          "rois": []
+        },
+        "metrics": {
+          "hota": 64.563,
+          "mota": 74.258,
+          "idf1": 72.438,
+          "idsw": 1171
+        }
+      }
+    ]
+  },
+  "notes": [
+    "The Rust and official Python implementations produced identical frame and track ID assignments for this evaluation."
+  ]
+}

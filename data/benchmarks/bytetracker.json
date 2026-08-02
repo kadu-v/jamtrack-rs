@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "tracker": "ByteTracker",
+  "performance": {
+    "device": "M3 MacBook Pro",
+    "frames": 1627,
+    "unit": "ms",
+    "input": "data/jsons/detection_results.json",
+    "results": [
+      {
+        "label": "ByteTracker",
+        "implementation": "rust",
+        "variant": "default",
+        "elapsed_ms": 80.9
+      }
+    ]
+  },
+  "mot17_train": {
+    "detector": "YOLOX-X",
+    "evaluator": "TrackEval",
+    "results": [
+      {
+        "label": "OfficialByteTracker (Python)",
+        "chart_label": "Byte (Py)",
+        "implementation": "python",
+        "official": true,
+        "variant": "default",
+        "metrics": {
+          "hota": 67.82,
+          "mota": 80.92,
+          "idf1": 77.29,
+          "idsw": 458
+        }
+      },
+      {
+        "label": "OfficialByteTrackerTuned (Python)",
+        "chart_label": "Byte Tuned (Py)",
+        "implementation": "python",
+        "official": true,
+        "variant": "tuned",
+        "metrics": {
+          "hota": 67.92,
+          "mota": 80.9,
+          "idf1": 77.47,
+          "idsw": 453
+        }
+      },
+      {
+        "label": "ByteTracker (Rust)",
+        "chart_label": "Byte",
+        "implementation": "rust",
+        "variant": "default",
+        "metrics": {
+          "hota": 68.35,
+          "mota": 80.97,
+          "idf1": 77.89,
+          "idsw": 454
+        }
+      },
+      {
+        "label": "ByteTrackerTuned (Rust)",
+        "chart_label": "Byte Tuned",
+        "implementation": "rust",
+        "variant": "tuned",
+        "metrics": {
+          "hota": 68.55,
+          "mota": 80.95,
+          "idf1": 78.27,
+          "idsw": 450
+        }
+      }
+    ]
+  }
+}

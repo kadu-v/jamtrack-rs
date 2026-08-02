@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "tracker": "BoostTrack",
+  "performance": {
+    "device": "M3 MacBook Pro",
+    "frames": 1627,
+    "unit": "ms",
+    "input": "data/jsons/detection_results.json",
+    "results": [
+      {
+        "label": "BoostTrack",
+        "implementation": "rust",
+        "variant": "default",
+        "elapsed_ms": 63.4
+      },
+      {
+        "label": "BoostTrack+",
+        "implementation": "rust",
+        "variant": "plus",
+        "elapsed_ms": 84.1
+      },
+      {
+        "label": "BoostTrack++",
+        "implementation": "rust",
+        "variant": "plusplus",
+        "elapsed_ms": 77.9
+      }
+    ]
+  },
+  "mot17_train": {
+    "detector": "YOLOX-X",
+    "evaluator": "TrackEval",
+    "results": [
+      {
+        "label": "BoostTrack+ (Rust)",
+        "chart_label": "Boost+",
+        "implementation": "rust",
+        "variant": "plus",
+        "metrics": {
+          "hota": 65.93,
+          "mota": 78.57,
+          "idf1": 74.11,
+          "idsw": 560
+        }
+      },
+      {
+        "label": "BoostTrack (Rust)",
+        "chart_label": "Boost",
+        "implementation": "rust",
+        "variant": "default",
+        "metrics": {
+          "hota": 66.03,
+          "mota": 78.24,
+          "idf1": 74.13,
+          "idsw": 536
+        }
+      },
+      {
+        "label": "BoostTrack++ (Rust)",
+        "chart_label": "Boost++",
+        "implementation": "rust",
+        "variant": "plusplus",
+        "metrics": {
+          "hota": 66.02,
+          "mota": 78.86,
+          "idf1": 74.29,
+          "idsw": 558
+        }
+      },
+      {
+        "label": "OfficialBoostTrack (Python)",
+        "chart_label": "Boost (Py)",
+        "implementation": "python",
+        "official": true,
+        "variant": "default",
+        "metrics": {
+          "hota": 67.3,
+          "mota": 78.26,
+          "idf1": 76.0,
+          "idsw": 520
+        }
+      },
+      {
+        "label": "OfficialBoostTrack++ (Python)",
+        "chart_label": "Boost++ (Py)",
+        "implementation": "python",
+        "official": true,
+        "variant": "plusplus",
+        "metrics": {
+          "hota": 67.87,
+          "mota": 78.89,
+          "idf1": 76.91,
+          "idsw": 515
+        }
+      },
+      {
+        "label": "BoostTrackECC (Rust)",
+        "chart_label": "Boost ECC",
+        "implementation": "rust",
+        "variant": "ecc",
+        "metrics": {
+          "hota": 68.39,
+          "mota": 79.06,
+          "idf1": 77.94,
+          "idsw": 344
+        }
+      },
+      {
+        "label": "BoostTrack++ECC (Rust)",
+        "chart_label": "Boost++ ECC",
+        "implementation": "rust",
+        "variant": "plusplus_ecc",
+        "metrics": {
+          "hota": 68.35,
+          "mota": 79.8,
+          "idf1": 77.98,
+          "idsw": 318
+        }
+      },
+      {
+        "label": "OfficialBoostTrackECC (Python)",
+        "chart_label": "Boost ECC (Py)",
+        "implementation": "python",
+        "official": true,
+        "variant": "ecc",
+        "metrics": {
+          "hota": 69.28,
+          "mota": 79.17,
+          "idf1": 79.1,
+          "idsw": 308
+        }
+      },
+      {
+        "label": "OfficialBoostTrack++ECC (Python)",
+        "chart_label": "Boost++ ECC (Py)",
+        "implementation": "python",
+        "official": true,
+        "variant": "plusplus_ecc",
+        "metrics": {
+          "hota": 69.71,
+          "mota": 79.92,
+          "idf1": 79.82,
+          "idsw": 287
+        }
+      }
+    ]
+  }
+}

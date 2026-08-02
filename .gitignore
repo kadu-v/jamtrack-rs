@@ -16,6 +16,9 @@ output/
 .venv/
 auto.py
 
+# Local upstream checkout used for FastTracker parity verification
+FastTracker/
+
 # xcframework build artifacts
 swift/JTrackers/Artifacts/
 swift/JTrackers/.build/

@@ -6,11 +6,15 @@
 
 [![Swift Package CI/CD](https://github.com/kadu-v/jamtrack-rs/actions/workflows/swift.yml/badge.svg)](https://github.com/kadu-v/jamtrack-rs/actions/workflows/swift.yml)
 
-JamTrack-rs is a Rust crate that provides multi-object tracking algorithms including [ByteTrack](https://arxiv.org/abs/2110.06864), [BoT-SORT](https://arxiv.org/abs/2206.14651), [BoostTrack](https://arxiv.org/abs/2408.13003), and [OC-SORT](https://arxiv.org/abs/2203.14360).
+JamTrack-rs is a Rust crate that provides multi-object tracking algorithms including [ByteTrack](https://arxiv.org/abs/2110.06864), [FastTracker](https://arxiv.org/abs/2508.14370), [BoT-SORT](https://arxiv.org/abs/2206.14651), [BoostTrack](https://arxiv.org/abs/2408.13003), and [OC-SORT](https://arxiv.org/abs/2203.14360).
 
 ## Features
 
 - **ByteTracker**: Simple and efficient tracking using IoU-based association
+- **FastTracker**: Occlusion-aware association with optional road-region and direction-cone constraints
+  - Motion reset, bounding-box enlargement, and dampening during occlusion
+  - Duplicate-track initialization suppression and recently-occluded lifetime extension
+  - Four-point ROI trajectory repair and direction refinement
 - **BotSort**: BoT-SORT tracking with BYTE-style association, `xywh` Kalman filter, optional ECC camera compensation, and optional external ReID embeddings
 - **BoostTracker**: Advanced tracking with confidence boosting techniques
   - **BoostTrack**: Basic DLO/DUO confidence boost
@@ -24,10 +28,17 @@ JamTrack-rs is a Rust crate that provides multi-object tracking algorithms inclu
 
 ## Demo
 
+### FastTracker
 
 <div align="center">
-    <video controls src="https://github.com/user-attachments/assets/0cd32cd9-75e6-4540-9933-926c4264a43f" muted="false" width="500"></video>
+    <video controls src="https://github.com/user-attachments/assets/ea93c710-0e47-4e06-a026-83d37d6532f7" poster="./data/charts/fasttracker_demo.jpg" muted="false" width="640"></video>
+    <br>
+    <a href="https://github.com/user-attachments/assets/ea93c710-0e47-4e06-a026-83d37d6532f7">Play the FastTracker demo</a>
 </div>
+
+The demo uses YOLOX-X detections and the standard FastTracker constructor with
+no RoI constraints. The source footage is from the
+[NHK Creative Library](https://www2.nhk.or.jp/archives/movies/?id=D0002011239_00000).
 
 **Individual tracker demos:** [ByteTracker](https://github.com/user-attachments/assets/dc135e90-4296-408e-8309-bfd921c06700) | [BoT-SORT](https://github.com/user-attachments/assets/3b4ec6ed-8c74-49f5-9488-5d453c768c66) | [BoostTracker](https://github.com/user-attachments/assets/a3c9c252-cb32-4944-8820-fe981588b90e) | [BoostTracker+](https://github.com/user-attachments/assets/6e05a5ec-337c-4aa9-9202-f635acf56050) | [BoostTracker++](https://github.com/user-attachments/assets/e5c93888-b0b7-42cd-af87-b22dfbe063fe)
 
@@ -105,6 +116,71 @@ let tracks = tracker.update(&detections).unwrap();
 
 for track in tracks {
     println!("Track ID: {:?}, Rect: {:?}", track.get_track_id(), track.get_rect());
+}
+```
+
+### FastTracker
+
+```rust
+use jamtrack_rs::{FastTracker, Object, Rect};
+
+// frame_rate, track_buffer, track_thresh, match_thresh
+let mut tracker = FastTracker::new(30, 30, 0.6, 0.7);
+
+let detections = vec![Object::new(
+    Rect::new(100.0, 100.0, 50.0, 80.0),
+    0.9,
+    None,
+)];
+let tracks = tracker.update(&detections)?;
+# Ok::<(), jamtrack_rs::TrackError>(())
+```
+
+FastTracker expects detection rectangles in original-image coordinates. Its
+occlusion handling is enabled by the standard constructor; RoI constraints are
+optional.
+
+An RoI is a camera-specific, four-point polygon. Upstream FastTracker does not
+detect it automatically and does not use it to discard detections outside the
+polygon. It repairs short trajectory excursions after a track returns to the
+RoI, and refines motion that falls outside the direction cone derived from the
+four points. Configure it only when fixed pixel coordinates for the scene are
+known:
+
+```rust
+use jamtrack_rs::{FastTracker, FastTrackerRoi};
+
+// Point order follows upstream FastTracker: (E1, E2, O2, O1).
+let road = FastTrackerRoi::new([
+    [312.0, 196.0],
+    [422.0, 188.0],
+    [1399.0, 694.0],
+    [152.0, 697.0],
+]);
+
+let mut tracker = FastTracker::new(30, 30, 0.6, 0.7)
+    .with_rois(vec![road], 15, 10, 2.0);
+```
+
+`FastTrackerRoi` is the Rust value that owns these four points. Multiple RoIs
+may be supplied; the first polygon containing the current track center is used.
+Without `with_rois`, behavior matches upstream with no `ROIs` configuration.
+
+The same tracker is available from Swift:
+
+```swift
+let tracker = FastTracker(
+    frameRate: 30,
+    trackBuffer: 30,
+    trackThresh: 0.6,
+    matchThresh: 0.7
+)
+
+switch tracker.update(detections) {
+case .success(let tracks):
+    print(tracks)
+case .failure(let error):
+    print(error)
 }
 ```
 
@@ -201,8 +277,10 @@ Tested on M3 MacBook Pro with 1627 frames from detection_results.json.
 
 ### Performance
 
+Lower is better. Each bar is the time required to process all 1627 frames.
+
 <div align="center">
-    <img src="./data/charts/performance.png" width="600">
+    <img src="./data/charts/performance.png" width="800">
 </div>
 
 ### Why is BoostTrack++ faster than BoostTrack+?
@@ -223,15 +301,23 @@ Fewer tracks = smaller similarity matrices = faster downstream computation.
 cargo bench
 ```
 
+The values used by the charts are stored by tracker family in
+[`data/benchmarks`](./data/benchmarks). After updating those JSON files,
+regenerate every benchmark chart with:
+
+```bash
+uv run --project python python scripts/gen_charts.py
+```
+
 ### MOT17-train Benchmark (YOLOX-X Detector)
 
-Evaluation results on MOT17 train set using YOLOX-X detector:
+Evaluation results on MOT17 train set using YOLOX-X detector. The left panel
+compares tracking quality with identity switches; its vertical axis is inverted,
+so points toward the upper right are better. The right panel compares detection
+accuracy with identity preservation. Dashed lines show the Pareto frontier.
 
 <div align="center">
-    <img src="./data/charts/mot17_hota.png" width="700">
-    <img src="./data/charts/mot17_mota.png" width="700">
-    <img src="./data/charts/mot17_idf1.png" width="700">
-    <img src="./data/charts/mot17_idsw.png" width="700">
+    <img src="./data/charts/mot17_tradeoffs.png" width="1000">
 </div>
 
 > [!NOTE]
@@ -240,6 +326,8 @@ Evaluation results on MOT17 train set using YOLOX-X detector:
 > - BoT-SORT ReID matching is implemented, but the MOT17 benchmark above uses the non-ReID path for fair comparison with non-embedding tracker variants
 > - MOTA is determined by the core algorithm, so Rust and Python versions achieve nearly identical values
 > - *Tuned* variants use optimized hyperparameters of a tracker for MOT17 dataset
+> - FastTracker was evaluated with `track_thresh=0.6`, `track_buffer=30`, `match_thresh=0.7`, and no RoI constraints
+> - Rust and official Python FastTracker produced identical frame/ID assignments and TrackEval results: HOTA 64.56, MOTA 74.26, IDF1 72.44, and 1,171 ID switches
 
 
 ## Examples
@@ -249,6 +337,9 @@ Run the examples with detection data:
 ```bash
 # ByteTracker
 cargo run --example example_byte_tracker
+
+# FastTracker
+cargo run --example example_fast_tracker
 
 # BoostTracker (basic)
 cargo run --example example_boost_tracker
@@ -264,26 +355,29 @@ cargo run --example example_bot_sort
 
 ## Tracker Comparison
 
-| Feature | ByteTracker | BoT-SORT | BoostTrack | BoostTrack+ | BoostTrack++ | OC-SORT |
-|---------|-------------|----------|------------|-------------|--------------|---------|
-| IoU Association | Yes | Yes | Yes | Yes | Yes | Yes |
-| Mahalanobis Distance | No | No | Yes | Yes | Yes | No |
-| Shape Similarity | No | No | No | Yes | Yes | No |
-| DLO Confidence Boost | No | No | Yes | Yes | Yes | No |
-| DUO Confidence Boost | No | No | Yes | Yes | Yes | No |
-| Rich Similarity | No | No | No | Yes | Yes | No |
-| Soft Boost | No | No | No | No | Yes | No |
-| Varying Threshold | No | No | No | No | Yes | No |
-| VDC (Velocity Direction Consistency) | No | No | No | No | No | Yes |
-| OCR (Re-association) | No | No | No | No | No | Yes |
-| Online Smoothing (Freeze/Unfreeze) | No | No | No | No | No | Yes |
-| BYTE Association | Yes | Yes | No | No | No | Yes |
-| Embedding (Re-ID) | No | Optional | No | No | No | No |
-| ECC (Camera Motion Compensation) | No | Yes | Yes | Yes | Yes | No |
+| Feature | ByteTracker | FastTracker | BoT-SORT | BoostTrack | BoostTrack+ | BoostTrack++ | OC-SORT |
+|---------|-------------|-------------|----------|------------|-------------|--------------|---------|
+| IoU Association | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Occlusion Handling | No | Yes | No | No | No | No | No |
+| RoI Constraints | No | Yes | No | No | No | No | No |
+| Mahalanobis Distance | No | No | No | Yes | Yes | Yes | No |
+| Shape Similarity | No | No | No | No | Yes | Yes | No |
+| DLO Confidence Boost | No | No | No | Yes | Yes | Yes | No |
+| DUO Confidence Boost | No | No | No | Yes | Yes | Yes | No |
+| Rich Similarity | No | No | No | No | Yes | Yes | No |
+| Soft Boost | No | No | No | No | No | Yes | No |
+| Varying Threshold | No | No | No | No | No | Yes | No |
+| VDC (Velocity Direction Consistency) | No | No | No | No | No | No | Yes |
+| OCR (Re-association) | No | No | No | No | No | No | Yes |
+| Online Smoothing (Freeze/Unfreeze) | No | No | No | No | No | No | Yes |
+| BYTE Association | Yes | Yes | Yes | No | No | No | Yes |
+| Embedding (Re-ID) | No | No | Optional | No | No | No | No |
+| ECC (Camera Motion Compensation) | No | No | Yes | Yes | Yes | Yes | No |
 
 ## References
 
 - [ByteTrack: Multi-Object Tracking by Associating Every Detection Box](https://arxiv.org/abs/2110.06864)
+- [FastTracker: Real-Time and Accurate Visual Tracking](https://arxiv.org/abs/2508.14370)
 - [BoT-SORT: Robust Associations Multi-Pedestrian Tracking](https://arxiv.org/abs/2206.14651)
 - [BoostTrack: Boosting the Similarity Measure and Detection Confidence for Improved Multiple Object Tracking](https://arxiv.org/abs/2408.13003)
 - [OC-SORT: Observation-Centric SORT on video Multi-Object Tracking](https://arxiv.org/abs/2203.14360)

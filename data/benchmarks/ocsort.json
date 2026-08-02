@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "tracker": "OC-SORT",
+  "performance": {
+    "device": "M3 MacBook Pro",
+    "frames": 1627,
+    "unit": "ms",
+    "input": "data/jsons/detection_results.json",
+    "results": [
+      {
+        "label": "OC-SORT",
+        "implementation": "rust",
+        "variant": "default",
+        "elapsed_ms": 33.2,
+        "highlight": true
+      },
+      {
+        "label": "OC-SORT + BYTE",
+        "implementation": "rust",
+        "variant": "byte",
+        "elapsed_ms": 56.8
+      }
+    ]
+  },
+  "mot17_train": {
+    "detector": "YOLOX-X",
+    "evaluator": "TrackEval",
+    "results": [
+      {
+        "label": "OCSortTracker (Rust)",
+        "chart_label": "OC-SORT",
+        "implementation": "rust",
+        "variant": "default",
+        "metrics": {
+          "hota": 67.73,
+          "mota": 78.55,
+          "idf1": 76.67,
+          "idsw": 484
+        }
+      }
+    ]
+  }
+}

@@ -1,4 +1,12 @@
-# Old Demo Videos
+# Tracker Demo Videos
+
+### FastTracker
+
+<div align="center">
+    <video controls src="./output.mp4" poster="../charts/fasttracker_demo.jpg" muted="false" width="640"></video>
+</div>
+
+This demo uses the standard constructor with no RoI constraints.
 
 ### ByteTracker
 

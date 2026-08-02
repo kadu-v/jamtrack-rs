@@ -5,3 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = "==3.9.6"
 dependencies = ["numpy", "opencv-python", "lapx", "scipy", "torch", "onnxruntime"]
+
+[dependency-groups]
+dev = [
+    "adjusttext>=1.4.0",
+    "cython-bbox>=0.1.5",
+    "lap>=0.5.13",
+    "matplotlib>=3.9.4",
+]
