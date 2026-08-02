@@ -7,6 +7,7 @@
     "results": [
       {
         "label": "BotSort (Rust)",
+        "chart_label": "BoT-SORT",
         "implementation": "rust",
         "variant": "default",
         "reid": false,
@@ -19,6 +20,7 @@
       },
       {
         "label": "BotSortECC (Rust)",
+        "chart_label": "BoT-SORT ECC",
         "implementation": "rust",
         "variant": "ecc",
         "reid": false,

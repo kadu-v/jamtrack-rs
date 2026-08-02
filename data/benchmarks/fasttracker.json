@@ -21,6 +21,7 @@
     "results": [
       {
         "label": "FastTracker (Rust)",
+        "chart_label": "FastTracker",
         "implementation": "rust",
         "variant": "default",
         "config": {
@@ -38,6 +39,7 @@
       },
       {
         "label": "OfficialFastTracker (Python)",
+        "chart_label": "FastTracker (Py)",
         "implementation": "python",
         "official": true,
         "variant": "default",

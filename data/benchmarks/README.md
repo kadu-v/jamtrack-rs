@@ -9,7 +9,8 @@ and uses `schema_version: 1`. A file may contain two benchmark sections:
 
 Every result records a display `label`, `implementation`, and `variant` so new
 Rust/Python or tuned/ECC variants can be added without changing the chart
-generator. Python reference results also declare `official: true`.
+generator. MOT17 results also provide a compact `chart_label` for annotations.
+Python reference results declare `official: true`.
 
 Regenerate all charts from these files with:
 

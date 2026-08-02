@@ -277,10 +277,10 @@ Tested on M3 MacBook Pro with 1627 frames from detection_results.json.
 
 ### Performance
 
-Lower is better. Each value is the time required to process all 1627 frames.
+Lower is better. Each dot is the time required to process all 1627 frames.
 
 <div align="center">
-    <img src="./data/charts/performance.png" width="600">
+    <img src="./data/charts/performance.png" width="800">
 </div>
 
 ### Why is BoostTrack++ faster than BoostTrack+?
@@ -311,13 +311,13 @@ uv run --project python python scripts/gen_charts.py
 
 ### MOT17-train Benchmark (YOLOX-X Detector)
 
-Evaluation results on MOT17 train set using YOLOX-X detector:
+Evaluation results on MOT17 train set using YOLOX-X detector. The left panel
+compares tracking quality with identity switches; its vertical axis is inverted,
+so points toward the upper right are better. The right panel compares detection
+accuracy with identity preservation. Dashed lines show the Pareto frontier.
 
 <div align="center">
-    <img src="./data/charts/mot17_hota.png" width="700">
-    <img src="./data/charts/mot17_mota.png" width="700">
-    <img src="./data/charts/mot17_idf1.png" width="700">
-    <img src="./data/charts/mot17_idsw.png" width="700">
+    <img src="./data/charts/mot17_tradeoffs.png" width="1000">
 </div>
 
 > [!NOTE]

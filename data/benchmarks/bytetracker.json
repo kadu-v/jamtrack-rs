@@ -21,6 +21,7 @@
     "results": [
       {
         "label": "OfficialByteTracker (Python)",
+        "chart_label": "Byte (Py)",
         "implementation": "python",
         "official": true,
         "variant": "default",
@@ -33,6 +34,7 @@
       },
       {
         "label": "OfficialByteTrackerTuned (Python)",
+        "chart_label": "Byte Tuned (Py)",
         "implementation": "python",
         "official": true,
         "variant": "tuned",
@@ -45,6 +47,7 @@
       },
       {
         "label": "ByteTracker (Rust)",
+        "chart_label": "Byte",
         "implementation": "rust",
         "variant": "default",
         "metrics": {
@@ -56,6 +59,7 @@
       },
       {
         "label": "ByteTrackerTuned (Rust)",
+        "chart_label": "Byte Tuned",
         "implementation": "rust",
         "variant": "tuned",
         "metrics": {

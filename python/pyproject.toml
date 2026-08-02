@@ -8,6 +8,7 @@ dependencies = ["numpy", "opencv-python", "lapx", "scipy", "torch", "onnxruntime
 
 [dependency-groups]
 dev = [
+    "adjusttext>=1.4.0",
     "cython-bbox>=0.1.5",
     "lap>=0.5.13",
     "matplotlib>=3.9.4",

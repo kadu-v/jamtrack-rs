@@ -33,6 +33,7 @@
     "results": [
       {
         "label": "BoostTrack+ (Rust)",
+        "chart_label": "Boost+",
         "implementation": "rust",
         "variant": "plus",
         "metrics": {
@@ -44,6 +45,7 @@
       },
       {
         "label": "BoostTrack (Rust)",
+        "chart_label": "Boost",
         "implementation": "rust",
         "variant": "default",
         "metrics": {
@@ -55,6 +57,7 @@
       },
       {
         "label": "BoostTrack++ (Rust)",
+        "chart_label": "Boost++",
         "implementation": "rust",
         "variant": "plusplus",
         "metrics": {
@@ -66,6 +69,7 @@
       },
       {
         "label": "OfficialBoostTrack (Python)",
+        "chart_label": "Boost (Py)",
         "implementation": "python",
         "official": true,
         "variant": "default",
@@ -78,6 +82,7 @@
       },
       {
         "label": "OfficialBoostTrack++ (Python)",
+        "chart_label": "Boost++ (Py)",
         "implementation": "python",
         "official": true,
         "variant": "plusplus",
@@ -90,6 +95,7 @@
       },
       {
         "label": "BoostTrackECC (Rust)",
+        "chart_label": "Boost ECC",
         "implementation": "rust",
         "variant": "ecc",
         "metrics": {
@@ -101,6 +107,7 @@
       },
       {
         "label": "BoostTrack++ECC (Rust)",
+        "chart_label": "Boost++ ECC",
         "implementation": "rust",
         "variant": "plusplus_ecc",
         "metrics": {
@@ -112,6 +119,7 @@
       },
       {
         "label": "OfficialBoostTrackECC (Python)",
+        "chart_label": "Boost ECC (Py)",
         "implementation": "python",
         "official": true,
         "variant": "ecc",
@@ -124,6 +132,7 @@
       },
       {
         "label": "OfficialBoostTrack++ECC (Python)",
+        "chart_label": "Boost++ ECC (Py)",
         "implementation": "python",
         "official": true,
         "variant": "plusplus_ecc",
