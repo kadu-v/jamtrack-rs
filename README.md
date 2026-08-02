@@ -31,9 +31,9 @@ JamTrack-rs is a Rust crate that provides multi-object tracking algorithms inclu
 ### FastTracker
 
 <div align="center">
-    <video controls src="./data/video/output.mp4" poster="./data/charts/fasttracker_demo.jpg" muted="false" width="640"></video>
+    <video controls src="https://github.com/user-attachments/assets/ea93c710-0e47-4e06-a026-83d37d6532f7" poster="./data/charts/fasttracker_demo.jpg" muted="false" width="640"></video>
     <br>
-    <a href="./data/video/output.mp4">Play the FastTracker demo</a>
+    <a href="https://github.com/user-attachments/assets/ea93c710-0e47-4e06-a026-83d37d6532f7">Play the FastTracker demo</a>
 </div>
 
 The demo uses YOLOX-X detections and the standard FastTracker constructor with
