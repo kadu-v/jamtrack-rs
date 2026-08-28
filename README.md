@@ -6,21 +6,34 @@
 
 [![Swift Package CI/CD](https://github.com/kadu-v/jamtrack-rs/actions/workflows/swift.yml/badge.svg)](https://github.com/kadu-v/jamtrack-rs/actions/workflows/swift.yml)
 
-JamTrack-rs is a Rust crate that provides multi-object tracking algorithms including [ByteTrack](https://arxiv.org/abs/2110.06864), [FastTracker](https://arxiv.org/abs/2508.14370), [BoT-SORT](https://arxiv.org/abs/2206.14651), [BoostTrack](https://arxiv.org/abs/2408.13003), and [OC-SORT](https://arxiv.org/abs/2203.14360).
+JamTrack-rs is a Rust crate that provides multi-object tracking algorithms including [ByteTrack](https://arxiv.org/abs/2110.06864), [McByte](https://arxiv.org/abs/2506.01373), [FastTracker](https://arxiv.org/abs/2508.14370), [BoT-SORT](https://arxiv.org/abs/2206.14651), [BoostTrack](https://arxiv.org/abs/2408.13003), and [OC-SORT](https://arxiv.org/abs/2203.14360).
 
-## Features
+## 📰 News
 
-- **ByteTracker**: Simple and efficient tracking using IoU-based association
-- **FastTracker**: Occlusion-aware association with optional road-region and direction-cone constraints
+- 🚀 **2026-08-27** — Added McByteTracker with external mask-conditioned association and pure Rust SparseOptFlow camera-motion compensation.
+- 🛣️ **2026-08-02** — Added FastTracker with occlusion handling, road-region constraints, and direction refinement.
+- 🧠 **2026-05-08** — Added BoT-SORT with BYTE association, optional ECC, and external ReID embeddings.
+- 👁️ **2026-03-04** — Added OC-SORT with VDC association, OCR re-association, and online smoothing.
+- 🎥 **2026-02-13** — Added ECC support and aligned BoostTrack association behavior.
+- ⚡ **2026-01-18** — Added BoostTrack, BoostTrack+, and BoostTrack++ implementations, examples, and benchmarks.
+- 🎉 **2024-04-20** — Added the initial ByteTracker implementation.
+
+## ✨ Features
+
+- 📦 **ByteTracker**: Simple and efficient tracking using IoU-based association
+- 🎭 **McByteTracker**: Roboflow-style clear-match locking and mask-conditioned association
+  - Accepts externally propagated per-track binary masks and confidence scores
+  - Optional isolated low-IoU recovery and pure Rust SparseOptFlow camera compensation
+- 🛣️ **FastTracker**: Occlusion-aware association with optional road-region and direction-cone constraints
   - Motion reset, bounding-box enlargement, and dampening during occlusion
   - Duplicate-track initialization suppression and recently-occluded lifetime extension
   - Four-point ROI trajectory repair and direction refinement
-- **BotSort**: BoT-SORT tracking with BYTE-style association, `xywh` Kalman filter, optional ECC camera compensation, and optional external ReID embeddings
-- **BoostTracker**: Advanced tracking with confidence boosting techniques
+- 🧠 **BotSort**: BoT-SORT tracking with BYTE-style association, `xywh` Kalman filter, optional ECC camera compensation, and optional external ReID embeddings
+- ⚡ **BoostTracker**: Advanced tracking with confidence boosting techniques
   - **BoostTrack**: Basic DLO/DUO confidence boost
   - **BoostTrack+**: Rich similarity (Mahalanobis distance + shape + soft BIoU)
   - **BoostTrack++**: Rich similarity + soft boost + varying threshold
-- **OC-SORT**: Observation-Centric SORT with online smoothing
+- 👁️ **OC-SORT**: Observation-Centric SORT with online smoothing
   - IoU + VDC (Velocity Direction Consistency) association
   - BYTE association for low-confidence detections
   - OCR (Observation-Centric Re-association) with last observation
@@ -32,7 +45,7 @@ JamTrack-rs is a Rust crate that provides multi-object tracking algorithms inclu
     <video controls src="https://github.com/user-attachments/assets/0cd32cd9-75e6-4540-9933-926c4264a43f" muted="false" width="500"></video>
 </div>
 
-**Individual tracker demos:** [ByteTracker](https://github.com/user-attachments/assets/dc135e90-4296-408e-8309-bfd921c06700) | [FastTracker](https://github.com/user-attachments/assets/ea93c710-0e47-4e06-a026-83d37d6532f7) | [BoT-SORT](https://github.com/user-attachments/assets/3b4ec6ed-8c74-49f5-9488-5d453c768c66) | [BoostTracker](https://github.com/user-attachments/assets/a3c9c252-cb32-4944-8820-fe981588b90e) | [BoostTracker+](https://github.com/user-attachments/assets/6e05a5ec-337c-4aa9-9202-f635acf56050) | [BoostTracker++](https://github.com/user-attachments/assets/e5c93888-b0b7-42cd-af87-b22dfbe063fe)
+**Individual tracker demos:** [ByteTracker](https://github.com/user-attachments/assets/dc135e90-4296-408e-8309-bfd921c06700) | [McByte + RF-DETR masks](https://github.com/user-attachments/assets/c6fbefe7-105b-4b00-b6d3-2865d7d7ecee) | [FastTracker](https://github.com/user-attachments/assets/ea93c710-0e47-4e06-a026-83d37d6532f7) | [BoT-SORT](https://github.com/user-attachments/assets/3b4ec6ed-8c74-49f5-9488-5d453c768c66) | [BoostTracker](https://github.com/user-attachments/assets/a3c9c252-cb32-4944-8820-fe981588b90e) | [BoostTracker+](https://github.com/user-attachments/assets/6e05a5ec-337c-4aa9-9202-f635acf56050) | [BoostTracker++](https://github.com/user-attachments/assets/e5c93888-b0b7-42cd-af87-b22dfbe063fe)
 
 Videos use YOLOX-X detections and footage from the
 [NHK Creative Library](https://www2.nhk.or.jp/archives/movies/?id=D0002011239_00000).
@@ -89,6 +102,36 @@ for track in tracks {
     println!("Track ID: {:?}, Rect: {:?}", track.get_track_id(), track.get_rect());
 }
 ```
+
+### McByteTracker
+
+```rust
+use image::{GrayImage, Luma};
+use jamtrack_rs::{McByteMask, McByteTracker, Object, Rect};
+
+let mut tracker = McByteTracker::default().without_cmc();
+let detections = vec![Object::new(
+    Rect::new(100.0, 100.0, 50.0, 80.0), 0.9, None,
+)];
+let first = tracker.update(&detections)?;
+
+// Masks are produced/propagated externally and keyed by an existing track ID.
+let mut mask = GrayImage::new(640, 480);
+for y in 100..180 {
+    for x in 100..150 {
+        mask.put_pixel(x, y, Luma([255]));
+    }
+}
+let masks = vec![McByteMask::new(
+    first[0].get_track_id().unwrap(), mask, 0.95,
+)];
+let tracks = tracker.update_with_masks(&detections, &masks)?;
+# Ok::<(), jamtrack_rs::TrackError>(())
+```
+
+Use `update_with_frame` or `update_with_frame_and_masks` with a `GrayImage` to
+run the default pure Rust SparseOptFlow camera-motion compensation. Plain
+`update` calls skip frame-dependent CMC, matching Roboflow's fallback behavior.
 
 ### BoostTracker
 
@@ -333,6 +376,9 @@ Run the examples with detection data:
 # ByteTracker
 cargo run --example example_byte_tracker
 
+# McByte
+cargo run --example example_mcbyte
+
 # FastTracker
 cargo run --example example_fast_tracker
 
@@ -350,28 +396,33 @@ cargo run --example example_bot_sort
 
 ## Tracker Comparison
 
-| Feature | ByteTracker | FastTracker | BoT-SORT | BoostTrack | BoostTrack+ | BoostTrack++ | OC-SORT |
-|---------|-------------|-------------|----------|------------|-------------|--------------|---------|
-| IoU Association | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Occlusion Handling | No | Yes | No | No | No | No | No |
-| RoI Constraints | No | Yes | No | No | No | No | No |
-| Mahalanobis Distance | No | No | No | Yes | Yes | Yes | No |
-| Shape Similarity | No | No | No | No | Yes | Yes | No |
-| DLO Confidence Boost | No | No | No | Yes | Yes | Yes | No |
-| DUO Confidence Boost | No | No | No | Yes | Yes | Yes | No |
-| Rich Similarity | No | No | No | No | Yes | Yes | No |
-| Soft Boost | No | No | No | No | No | Yes | No |
-| Varying Threshold | No | No | No | No | No | Yes | No |
-| VDC (Velocity Direction Consistency) | No | No | No | No | No | No | Yes |
-| OCR (Re-association) | No | No | No | No | No | No | Yes |
-| Online Smoothing (Freeze/Unfreeze) | No | No | No | No | No | No | Yes |
-| BYTE Association | Yes | Yes | Yes | No | No | No | Yes |
-| Embedding (Re-ID) | No | No | Optional | No | No | No | No |
-| ECC (Camera Motion Compensation) | No | No | Yes | Yes | Yes | Yes | No |
+| Feature | ByteTracker | McByte | FastTracker | BoT-SORT | BoostTrack | BoostTrack+ | BoostTrack++ | OC-SORT |
+|---------|-------------|--------|-------------|----------|------------|-------------|--------------|---------|
+| IoU Association | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Mask-Conditioned Association | No | Yes | No | No | No | No | No | No |
+| Clear-Match Locking | No | Yes | No | No | No | No | No | No |
+| Occlusion Handling | No | Yes | Yes | No | No | No | No | No |
+| RoI Constraints | No | No | Yes | No | No | No | No | No |
+| Mahalanobis Distance | No | No | No | No | Yes | Yes | Yes | No |
+| Shape Similarity | No | No | No | No | No | Yes | Yes | No |
+| DLO Confidence Boost | No | No | No | No | Yes | Yes | Yes | No |
+| DUO Confidence Boost | No | No | No | No | Yes | Yes | Yes | No |
+| Rich Similarity | No | No | No | No | No | Yes | Yes | No |
+| Soft Boost | No | No | No | No | No | No | Yes | No |
+| Varying Threshold | No | No | No | No | No | No | Yes | No |
+| VDC (Velocity Direction Consistency) | No | No | No | No | No | No | No | Yes |
+| OCR (Re-association) | No | No | No | No | No | No | No | Yes |
+| Online Smoothing (Freeze/Unfreeze) | No | No | No | No | No | No | No | Yes |
+| BYTE Association | Yes | Yes | Yes | Yes | No | No | No | Yes |
+| Embedding (Re-ID) | No | No | No | Optional | No | No | No | No |
+| SparseOptFlow CMC | No | Yes | No | No | No | No | No | No |
+| ECC CMC | No | No | No | Yes | Yes | Yes | Yes | No |
 
 ## References
 
 - [ByteTrack: Multi-Object Tracking by Associating Every Detection Box](https://arxiv.org/abs/2110.06864)
+- [McByte: No Train Yet Gain](https://arxiv.org/abs/2506.01373)
+- [Roboflow Trackers McByte implementation](https://github.com/roboflow/trackers/tree/develop/src/trackers/core/mcbyte)
 - [FastTracker: Real-Time and Accurate Visual Tracking](https://arxiv.org/abs/2508.14370)
 - [BoT-SORT: Robust Associations Multi-Pedestrian Tracking](https://arxiv.org/abs/2206.14651)
 - [BoostTrack: Boosting the Similarity Measure and Detection Confidence for Improved Multiple Object Tracking](https://arxiv.org/abs/2408.13003)

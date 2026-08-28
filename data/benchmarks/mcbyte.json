@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "tracker": "McByte",
+  "performance": {
+    "device": "M3 MacBook Pro",
+    "frames": 1627,
+    "unit": "ms",
+    "input": "data/jsons/detection_results.json",
+    "results": [
+      {
+        "label": "McByte",
+        "implementation": "rust",
+        "variant": "default",
+        "elapsed_ms": 22.277
+      }
+    ]
+  },
+  "notes": [
+    "Measured on an Apple M3 Max with mask input and CMC disabled for direct comparison with the existing fixed-detection benchmark.",
+    "The separate Criterion scenarios measured 151.86 us for 60 frames with external masks and 332.67 ms for 60 frames with external masks plus SparseOptFlow CMC."
+  ]
+}

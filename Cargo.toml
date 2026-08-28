@@ -32,6 +32,9 @@ harness = false
 name = "fasttracker_benchmark"
 harness = false
 
+[[bench]]
+name = "mcbyte_benchmark"
+harness = false
 
 [dependencies]
 thiserror = "1.0.66"
