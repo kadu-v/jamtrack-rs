@@ -14,10 +14,16 @@ Cargo.lock
 *.pdb
 output/
 .venv/
+__pycache__/
+*.pyc
+.DS_Store
 auto.py
+python/rfdetr/.model-cache/
 
-# Local upstream checkout used for FastTracker parity verification
+# Local upstream checkouts used for implementation parity verification
 FastTracker/
+McByte/
+trackers/
 
 # xcframework build artifacts
 swift/JTrackers/Artifacts/

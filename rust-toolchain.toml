@@ -1,7 +1,4 @@
 [toolchain]
 channel = "stable"
-targets = [
-    "aarch64-apple-darwin",
-    "aarch64-apple-ios",
-    "aarch64-apple-ios-sim",
-]
+components = ["rustfmt", "clippy", "rust-analyzer"]
+targets = ["aarch64-apple-darwin", "aarch64-apple-ios", "aarch64-apple-ios-sim"]

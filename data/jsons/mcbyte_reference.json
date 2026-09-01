@@ -1,0 +1,27 @@
+{
+  "source": "roboflow/trackers",
+  "source_commit": "ced34f04886da91dc6bec3dfe02f0a0427231ce8",
+  "association": {
+    "base_similarity": [[0.7, 0.8], [0.8, 0.7]],
+    "conditioned_similarity": [[1.7, 0.8], [0.8, 1.7]],
+    "matches": [[0, 0], [1, 1]]
+  },
+  "tracker_sequence": [
+    {
+      "detections": [[10.0, 10.0, 20.0, 30.0, 0.9], [60.0, 10.0, 70.0, 30.0, 0.85]],
+      "tracker_ids": [0, 1]
+    },
+    {
+      "detections": [[11.0, 10.0, 21.0, 30.0, 0.9], [59.0, 10.0, 69.0, 30.0, 0.85]],
+      "tracker_ids": [0, 1]
+    },
+    {
+      "detections": [[12.0, 10.0, 22.0, 30.0, 0.9]],
+      "tracker_ids": [0]
+    },
+    {
+      "detections": [[13.0, 10.0, 23.0, 30.0, 0.9], [58.0, 10.0, 68.0, 30.0, 0.85]],
+      "tracker_ids": [0, 1]
+    }
+  ]
+}
