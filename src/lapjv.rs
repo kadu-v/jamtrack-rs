@@ -170,8 +170,8 @@ fn find_dense(
                 hi = lo;
                 mind = d[j];
             }
-            debug_assert!(hi <= cols.len(), "hi must be less than cols.len()");
-            debug_assert!(k <= cols.len(), "k must be less than cols.len()");
+            debug_assert!(hi < cols.len(), "hi must be less than cols.len()");
+            debug_assert!(k < cols.len(), "k must be less than cols.len()");
             cols[k] = cols[hi];
             cols[hi] = j;
             hi += 1;
